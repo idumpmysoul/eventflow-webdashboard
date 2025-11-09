@@ -1,7 +1,14 @@
 /* src/index.css */
-@tailwind base;
+@tailwind base {
+  body {
+    @apply bg-background text-foreground;
+    @apply antialiased;
+  }
+}
 @tailwind components;
 @tailwind utilities;
+
+
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;

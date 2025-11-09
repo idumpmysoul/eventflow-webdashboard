@@ -55,7 +55,7 @@ const IncidentFeed = ({ reports, onIncidentSelect }) => {
             return (
               <ListItem 
                 key={report.id} 
-                className="cursor-pointer hover:bg-tremor-background-muted dark:hover:bg-dark-tremor-background-muted rounded-tremor-default"
+                className="cursor-pointer hover:bg-muted-background dark:hover:bg-dark-muted-background rounded-tremor-default"
                 onClick={() => onIncidentSelect(report)}
               >
                 <div className="flex items-start space-x-4">

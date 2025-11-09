@@ -1,5 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import Layout from './components/Layout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ParticipantsPage from './pages/ParticipantsPage.jsx';
@@ -8,7 +9,7 @@ import StatisticsPage from './pages/StatisticsPage.jsx';
 
 const App = () => {
   return (
-    <div className="dark h-screen w-screen antialiased">
+    <ThemeProvider>
       <HashRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
@@ -19,7 +20,7 @@ const App = () => {
           </Route>
         </Routes>
       </HashRouter>
-    </div>
+    </ThemeProvider>
   );
 };
 
