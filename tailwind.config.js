@@ -10,15 +10,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Light Theme
-        background: '#FFFAFA',
-        foreground: '#0E5463',
-        card: '#FFFFFF',
+        // Light Theme - Re-architected for better visual hierarchy
+        background: '#BFF4FF',           // Use "very light" blue as the main background
+        foreground: '#0E5463',           // Use "very dark" for text
+        card: '#FFFAFA',                 // Use off-white for card surfaces to make them stand out
         'card-foreground': '#0E5463',
-        primary: '#14B4D6',
+        primary: '#14B4D6',              // Use "medium dark" for interactive elements
         'primary-foreground': '#FFFAFA',
-        border: '#BFF4FF',
-        'muted-background': '#BFF4FF',
+        border: '#BFF4FF',               // Border color can match the background for a "borderless" look on cards
+        'muted-background': '#E6F9FF',   // A slightly different shade for hovers on cards
         'muted-foreground': 'rgba(14, 84, 99, 0.6)',
 
         // Dark Theme
