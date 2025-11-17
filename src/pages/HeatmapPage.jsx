@@ -1,27 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { getEventDetails, getParticipantLocations } from '../services/mockApi.js';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api.js';
 import MapComponent from '../components/MapComponent.jsx';
 import { Title, Subtitle } from '@tremor/react';
-import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const HeatmapPage = () => {
     const { theme } = useTheme();
+    const { selectedEventId } = useAuth();
+    const navigate = useNavigate();
     const [eventDetails, setEventDetails] = useState(null);
     const [participantLocations, setParticipantLocations] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!selectedEventId) {
+            navigate('/events');
+            return;
+        }
+
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [eventData, locationsData] = await Promise.all([
-                    getEventDetails(),
-                    getParticipantLocations(),
+                const [eventResponse, locationsResponse] = await Promise.all([
+                    api.getEventById(selectedEventId),
+                    api.getParticipantLocations(selectedEventId),
                 ]);
-                setEventDetails(eventData);
-                setParticipantLocations(locationsData);
+                setEventDetails(eventResponse.data || eventResponse);
+                setParticipantLocations(locationsResponse.data || locationsResponse);
             } catch (error) {
                 console.error("Failed to fetch heatmap data:", error);
             } finally {
@@ -30,7 +39,7 @@ const HeatmapPage = () => {
         };
 
         fetchData();
-    }, []);
+    }, [selectedEventId, navigate]);
     
     const mapCenter = eventDetails ? [eventDetails.longitude, eventDetails.latitude] : null;
 

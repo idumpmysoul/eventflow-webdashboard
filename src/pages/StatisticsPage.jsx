@@ -1,16 +1,25 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getReports } from '../services/mockApi.js';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api.js';
 import { Card, Title, Text, Grid, Col, BarChart, DonutChart, Metric } from '@tremor/react';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 const StatisticsPage = () => {
+    const { selectedEventId } = useAuth();
+    const navigate = useNavigate();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!selectedEventId) {
+            navigate('/events');
+            return;
+        }
+
         const fetchData = async () => {
             setLoading(true);
             try {
-                const data = await getReports();
+                const data = await api.getReports(selectedEventId);
                 setReports(data);
             } catch (error) {
                 console.error("Failed to fetch reports for stats:", error);
@@ -19,7 +28,7 @@ const StatisticsPage = () => {
             }
         };
         fetchData();
-    }, []);
+    }, [selectedEventId, navigate]);
 
     const { categoryData, statusData, totalReports } = useMemo(() => {
         if (!reports.length) {

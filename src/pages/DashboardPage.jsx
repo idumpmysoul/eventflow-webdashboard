@@ -1,50 +1,114 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getEventDetails, getReports, getParticipantLocations } from '../services/mockApi.js';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api.js';
+import socket from '../services/socket.js';
 import IncidentFeed from '../components/IncidentFeed.jsx';
 import MapComponent from '../components/MapComponent.jsx';
 import { Title, Subtitle } from '@tremor/react';
-import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const DashboardPage = () => {
     const { theme } = useTheme();
+    const { selectedEventId } = useAuth();
+    const navigate = useNavigate();
+    
     const [eventDetails, setEventDetails] = useState(null);
     const [reports, setReports] = useState([]);
     const [participantLocations, setParticipantLocations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const mapRef = useRef(null);
 
+    // Redirect if no event selected
     useEffect(() => {
+        if (!selectedEventId) {
+            navigate('/events');
+        }
+    }, [selectedEventId, navigate]);
+
+    useEffect(() => {
+        if (!selectedEventId) return;
+
+        let isMounted = true;
+
         const fetchData = async () => {
             try {
                 if (!VITE_MAPBOX_TOKEN) {
-                    console.error("Mapbox token is not configured. Please set VITE_MAPBOX_TOKEN in your .env file.");
+                    console.error("Mapbox token is not configured.");
                 }
                 setLoading(true);
-                const [eventData, reportsData, locationsData] = await Promise.all([
-                    getEventDetails(),
-                    getReports(),
-                    getParticipantLocations(),
+                const [eventResponse, reportsResponse, locationsResponse] = await Promise.all([
+                    api.getEventById(selectedEventId),
+                    api.getReports(selectedEventId),
+                    api.getParticipantLocations(selectedEventId),
                 ]);
-                setEventDetails(eventData);
-                setReports(reportsData);
-                setParticipantLocations(locationsData);
-            } catch (error) {
-                console.error("Failed to fetch dashboard data:", error);
+
+                if (isMounted) {
+                    setEventDetails(eventResponse.data || eventResponse);
+                    setReports(reportsResponse.data || reportsResponse);
+                    setParticipantLocations(locationsResponse.data || locationsResponse);
+                    setError(null);
+                }
+            } catch (err) {
+                console.error("Failed to fetch dashboard data:", err);
+                if (isMounted) setError(err.message);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
 
         fetchData();
-    }, []);
+
+        // Connect socket and listen for live updates
+        socket.connect();
+        socket.emit('joinEventRoom', selectedEventId);
+
+        socket.on('participantLocation', (newLocation) => {
+            setParticipantLocations((prevLocations) => {
+                 if (!prevLocations) return [newLocation];
+                const existingIndex = prevLocations.findIndex((p) => p.userId === newLocation.userId);
+                if (existingIndex > -1) {
+                    const updatedLocations = [...prevLocations];
+                    updatedLocations[existingIndex] = { ...updatedLocations[existingIndex], ...newLocation };
+                    return updatedLocations;
+                }
+                return [...prevLocations, newLocation];
+            });
+        });
+
+        socket.on('notification', (newReport) => {
+            // Prepend new report to the feed
+             setReports((prevReports) => [{ ...newReport, createdAt: new Date(newReport.createdAt) }, ...prevReports]);
+        });
+
+
+        return () => {
+            isMounted = false;
+            socket.emit('leaveEventRoom', selectedEventId);
+            socket.off('participantLocation');
+            socket.off('notification');
+            socket.disconnect();
+        };
+    }, [selectedEventId]);
 
     const handleIncidentSelect = (report) => {
         mapRef.current?.flyTo(report.longitude, report.latitude);
     };
 
     const mapCenter = eventDetails ? [eventDetails.longitude, eventDetails.latitude] : null;
+
+    if (error) {
+         return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                <Title className="text-red-500">Error Loading Dashboard</Title>
+                <Subtitle>Could not fetch data from the server.</Subtitle>
+                <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col">

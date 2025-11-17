@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getParticipants } from '../services/mockApi.js';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api.js';
 import {
     Card,
     Table,
@@ -12,17 +13,26 @@ import {
     Title,
     Badge,
 } from '@tremor/react';
+import { useAuth } from '../contexts/AuthContext.jsx';
+
 
 const ParticipantsPage = () => {
+    const { selectedEventId } = useAuth();
+    const navigate = useNavigate();
     const [participants, setParticipants] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!selectedEventId) {
+            navigate('/events');
+            return;
+        }
+
         const fetchData = async () => {
             setLoading(true);
             try {
-                const data = await getParticipants();
-                setParticipants(data);
+                const response = await api.getEventParticipants(selectedEventId);
+                setParticipants(response.data || response);
             } catch (error) {
                 console.error("Failed to fetch participants:", error);
             } finally {
@@ -30,7 +40,7 @@ const ParticipantsPage = () => {
             }
         };
         fetchData();
-    }, []);
+    }, [selectedEventId, navigate]);
 
     const statusColor = {
         'Active': 'emerald',
@@ -65,10 +75,10 @@ const ParticipantsPage = () => {
                                             <Text>{item.id}</Text>
                                         </TableCell>
                                         <TableCell>
-                                            <Text>{new Date(item.entryTime).toLocaleString()}</Text>
+                                            <Text>{item.entryTime ? new Date(item.entryTime).toLocaleString() : 'N/A'}</Text>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge color={statusColor[item.status]}>{item.status}</Badge>
+                                            <Badge color={statusColor[item.status] || 'slate'}>{item.status || 'Unknown'}</Badge>
                                         </TableCell>
                                     </TableRow>
                                 ))}

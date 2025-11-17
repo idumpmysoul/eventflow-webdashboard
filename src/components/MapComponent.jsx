@@ -72,12 +72,39 @@ const MapComponent = forwardRef(({ center, participantLocations, mapboxToken, pa
                     type: 'circle',
                     source: 'participants-data',
                     paint: {
-                        'circle-radius': 3,
+                        'circle-radius': 4,
                         'circle-color': '#14B4D6', // Use primary brand color
-                        'circle-opacity': 0.5,
-                        'circle-stroke-width': 0.5,
-                        'circle-stroke-color': theme === 'dark' ? '#000000' : '#ffffff'
+                        'circle-opacity': 0.6,
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': theme === 'dark' ? '#0E5463' : '#ffffff'
                     }
+                });
+
+                // Add click handler for popups
+                map.current.on('click', 'dots-layer', (e) => {
+                    if (e.features && e.features.length > 0) {
+                        const feature = e.features[0];
+                        const coordinates = feature.geometry.coordinates.slice();
+                        const participantName = feature.properties.name || 'Participant';
+                        const description = `Lat: ${coordinates[1].toFixed(4)}, Lng: ${coordinates[0].toFixed(4)}`;
+
+                        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                        }
+
+                        new mapboxgl.Popup()
+                            .setLngLat(coordinates)
+                            .setHTML(`<strong>${participantName}</strong><br>${description}`)
+                            .addTo(map.current);
+                    }
+                });
+
+                // Change cursor to pointer on hover
+                map.current.on('mouseenter', 'dots-layer', () => {
+                    if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+                });
+                map.current.on('mouseleave', 'dots-layer', () => {
+                    if (map.current) map.current.getCanvas().style.cursor = '';
                 });
             }
         });
@@ -92,13 +119,15 @@ const MapComponent = forwardRef(({ center, participantLocations, mapboxToken, pa
 
     // Update data when participantLocations prop changes
     useEffect(() => {
-        if (!map.current || !map.current.isStyleLoaded() || !participantLocations || !participantLocations.length) return;
+        if (!map.current || !map.current.isStyleLoaded() || !participantLocations) return;
 
         const geojsonData = {
             type: 'FeatureCollection',
             features: participantLocations.map(loc => ({
                 type: 'Feature',
-                properties: {},
+                properties: {
+                    name: loc.name || 'Unknown Participant',
+                },
                 geometry: {
                     type: 'Point',
                     coordinates: [loc.longitude, loc.latitude]
