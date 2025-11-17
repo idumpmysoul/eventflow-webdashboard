@@ -65,12 +65,35 @@ const participantLocations = Array.from({ length: PARTICIPANT_COUNT }, () => {
 
 // --- API Functions ---
 
+export const getEvents = () => {
+     return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                {
+                    id: 'event-jakarta-456',
+                    name: 'Jakarta Music Fest 2024 (Mock Data)',
+                    description: 'A mock music festival event in the heart of Jakarta.',
+                    startDate: new Date().toISOString(),
+                    location: 'Jakarta, Indonesia',
+                },
+                {
+                    id: 'event-bali-789',
+                    name: 'Bali Arts & Crafts Fair (Mock Data)',
+                    description: 'A mock cultural event showcasing Balinese arts.',
+                    startDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+                    location: 'Ubud, Bali',
+                }
+            ]);
+        }, 300);
+    });
+};
+
 export const getEventDetails = () => {
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve({
                 id: 'event-jakarta-456',
-                name: 'Jakarta Music Fest 2024',
+                name: 'Jakarta Music Fest 2024 (Mock Data)',
                 ...EVENT_CENTER,
             });
         }, 300);

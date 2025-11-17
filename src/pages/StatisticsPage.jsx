@@ -1,14 +1,29 @@
-import React, { useEffect, useState, useMemo } from 'react';
+
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
+import * as mockApi from '../services/mockApi.js';
+import MockDataBanner from '../components/MockDataBanner.jsx';
 import { Card, Title, Text, Grid, Col, BarChart, DonutChart, Metric } from '@tremor/react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+
+const MOCK_DATA_TIMEOUT = 5000;
 
 const StatisticsPage = () => {
     const { selectedEventId } = useAuth();
     const navigate = useNavigate();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [usingMockData, setUsingMockData] = useState(false);
+
+    const dataLoadedRef = useRef(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     useEffect(() => {
         if (!selectedEventId) {
@@ -16,22 +31,52 @@ const StatisticsPage = () => {
             return;
         }
 
+        dataLoadedRef.current = false;
+
+        const loadMockData = async () => {
+            if (dataLoadedRef.current || !isMountedRef.current) return;
+            dataLoadedRef.current = true;
+            console.warn("Falling back to mock statistics data.");
+            setUsingMockData(true);
+            try {
+                const mockReports = await mockApi.getReports();
+                if (isMountedRef.current) setReports(mockReports);
+            } catch (mockErr) {
+                if (isMountedRef.current) setError("Live data failed and mock data could not be loaded.");
+            } finally {
+                if (isMountedRef.current) setLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(loadMockData, MOCK_DATA_TIMEOUT);
+
         const fetchData = async () => {
             setLoading(true);
+            setError(null);
+            setUsingMockData(false);
             try {
                 const data = await api.getReports(selectedEventId);
-                setReports(data);
-            } catch (error) {
-                console.error("Failed to fetch reports for stats:", error);
-            } finally {
+                
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
+                dataLoadedRef.current = true;
+                
+                setReports(data.data || data);
                 setLoading(false);
+            } catch (err) {
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
+                console.error("Failed to fetch reports for stats:", err);
+                setError(err.message);
+                loadMockData();
             }
         };
         fetchData();
+        return () => clearTimeout(timeoutId);
     }, [selectedEventId, navigate]);
 
     const { categoryData, statusData, totalReports } = useMemo(() => {
-        if (!reports.length) {
+        if (!reports || !reports.length) {
             return { categoryData: [], statusData: [], totalReports: 0 };
         }
         
@@ -53,6 +98,7 @@ const StatisticsPage = () => {
     
     return (
         <div className="p-6">
+            {usingMockData && <MockDataBanner />}
             <Title>Incident Statistics</Title>
 
             {loading ? (

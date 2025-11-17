@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
+import * as mockApi from '../services/mockApi.js';
 import MapComponent from '../components/MapComponent.jsx';
+import MockDataBanner from '../components/MockDataBanner.jsx';
 import { Title, Subtitle } from '@tremor/react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MOCK_DATA_TIMEOUT = 5000; // 5 seconds
 
 const HeatmapPage = () => {
     const { theme } = useTheme();
@@ -15,36 +19,83 @@ const HeatmapPage = () => {
     const [eventDetails, setEventDetails] = useState(null);
     const [participantLocations, setParticipantLocations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [usingMockData, setUsingMockData] = useState(false);
+
+    const dataLoadedRef = useRef(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     useEffect(() => {
         if (!selectedEventId) {
             navigate('/events');
             return;
         }
+        
+        dataLoadedRef.current = false;
+
+        const loadMockData = async () => {
+            if (dataLoadedRef.current || !isMountedRef.current) return;
+            dataLoadedRef.current = true;
+            console.warn("Falling back to mock heatmap data.");
+            setUsingMockData(true);
+            try {
+                const [mockEvent, mockLocations] = await Promise.all([
+                    mockApi.getEventDetails(),
+                    mockApi.getParticipantLocations(),
+                ]);
+                if (isMountedRef.current) {
+                    setEventDetails(mockEvent);
+                    setParticipantLocations(mockLocations);
+                }
+            } catch (mockErr) {
+                if (isMountedRef.current) setError("Live data failed and mock data could not be loaded.");
+            } finally {
+                if (isMountedRef.current) setLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(loadMockData, MOCK_DATA_TIMEOUT);
 
         const fetchData = async () => {
             setLoading(true);
+            setError(null);
+            setUsingMockData(false);
             try {
                 const [eventResponse, locationsResponse] = await Promise.all([
                     api.getEventById(selectedEventId),
                     api.getParticipantLocations(selectedEventId),
                 ]);
+
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
+                dataLoadedRef.current = true;
+
                 setEventDetails(eventResponse.data || eventResponse);
                 setParticipantLocations(locationsResponse.data || locationsResponse);
-            } catch (error) {
-                console.error("Failed to fetch heatmap data:", error);
-            } finally {
                 setLoading(false);
+            } catch (err) {
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
+                console.error("Failed to fetch heatmap data:", err);
+                setError(err.message);
+                loadMockData();
             }
         };
 
         fetchData();
+        return () => clearTimeout(timeoutId);
     }, [selectedEventId, navigate]);
     
     const mapCenter = eventDetails ? [eventDetails.longitude, eventDetails.latitude] : null;
 
     return (
         <div className="h-full flex flex-col">
+            {usingMockData && <MockDataBanner />}
             <header className="p-6">
                 <Title>Participant Heatmap</Title>
                 <Subtitle>Visualization of crowd density across the event</Subtitle>

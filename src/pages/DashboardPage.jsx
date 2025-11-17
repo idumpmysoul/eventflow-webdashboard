@@ -1,14 +1,18 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
+import * as mockApi from '../services/mockApi.js';
 import socket from '../services/socket.js';
 import IncidentFeed from '../components/IncidentFeed.jsx';
 import MapComponent from '../components/MapComponent.jsx';
+import MockDataBanner from '../components/MockDataBanner.jsx';
 import { Title, Subtitle } from '@tremor/react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MOCK_DATA_TIMEOUT = 5000; // 5 seconds
 
 const DashboardPage = () => {
     const { theme } = useTheme();
@@ -20,7 +24,16 @@ const DashboardPage = () => {
     const [participantLocations, setParticipantLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [usingMockData, setUsingMockData] = useState(false);
+    
     const mapRef = useRef(null);
+    const dataLoadedRef = useRef(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     // Redirect if no event selected
     useEffect(() => {
@@ -32,43 +45,80 @@ const DashboardPage = () => {
     useEffect(() => {
         if (!selectedEventId) return;
 
-        let isMounted = true;
+        dataLoadedRef.current = false;
+
+        const loadMockData = async () => {
+            if (dataLoadedRef.current || !isMountedRef.current) return;
+            dataLoadedRef.current = true;
+            console.warn("API fetch failed or timed out, falling back to mock dashboard data.");
+            setUsingMockData(true);
+            try {
+                const [mockEvent, mockReports, mockLocations] = await Promise.all([
+                    mockApi.getEventDetails(),
+                    mockApi.getReports(),
+                    mockApi.getParticipantLocations(),
+                ]);
+                if (isMountedRef.current) {
+                    setEventDetails(mockEvent);
+                    setReports(mockReports);
+                    setParticipantLocations(mockLocations);
+                }
+            } catch (mockErr) {
+                console.error("Failed to load mock data:", mockErr);
+                if (isMountedRef.current) setError("Live data failed and mock data could not be loaded.");
+            } finally {
+                if (isMountedRef.current) setLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(loadMockData, MOCK_DATA_TIMEOUT);
 
         const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            setUsingMockData(false);
             try {
-                if (!VITE_MAPBOX_TOKEN) {
-                    console.error("Mapbox token is not configured.");
-                }
-                setLoading(true);
+                if (!VITE_MAPBOX_TOKEN) console.error("Mapbox token is not configured.");
+                
                 const [eventResponse, reportsResponse, locationsResponse] = await Promise.all([
                     api.getEventById(selectedEventId),
                     api.getReports(selectedEventId),
                     api.getParticipantLocations(selectedEventId),
                 ]);
 
-                if (isMounted) {
-                    setEventDetails(eventResponse.data || eventResponse);
-                    setReports(reportsResponse.data || reportsResponse);
-                    setParticipantLocations(locationsResponse.data || locationsResponse);
-                    setError(null);
-                }
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
+                dataLoadedRef.current = true;
+                
+                setEventDetails(eventResponse.data || eventResponse);
+                setReports(reportsResponse.data || reportsResponse);
+                setParticipantLocations(locationsResponse.data || locationsResponse);
+                setLoading(false);
             } catch (err) {
+                if (dataLoadedRef.current || !isMountedRef.current) return;
+                clearTimeout(timeoutId);
                 console.error("Failed to fetch dashboard data:", err);
-                if (isMounted) setError(err.message);
-            } finally {
-                if (isMounted) setLoading(false);
+                setError(err.message);
+                loadMockData();
             }
         };
 
         fetchData();
+        return () => clearTimeout(timeoutId);
+    }, [selectedEventId]);
 
-        // Connect socket and listen for live updates
+    // Effect for handling socket connection separately
+    useEffect(() => {
+        if (usingMockData || !selectedEventId || loading) {
+            return;
+        }
+
         socket.connect();
         socket.emit('joinEventRoom', selectedEventId);
 
         socket.on('participantLocation', (newLocation) => {
             setParticipantLocations((prevLocations) => {
-                 if (!prevLocations) return [newLocation];
+                if (!prevLocations) return [newLocation];
                 const existingIndex = prevLocations.findIndex((p) => p.userId === newLocation.userId);
                 if (existingIndex > -1) {
                     const updatedLocations = [...prevLocations];
@@ -80,19 +130,17 @@ const DashboardPage = () => {
         });
 
         socket.on('notification', (newReport) => {
-            // Prepend new report to the feed
-             setReports((prevReports) => [{ ...newReport, createdAt: new Date(newReport.createdAt) }, ...prevReports]);
+            setReports((prevReports) => [{ ...newReport, createdAt: new Date(newReport.createdAt) }, ...prevReports]);
         });
 
-
         return () => {
-            isMounted = false;
             socket.emit('leaveEventRoom', selectedEventId);
             socket.off('participantLocation');
             socket.off('notification');
             socket.disconnect();
         };
-    }, [selectedEventId]);
+    }, [selectedEventId, usingMockData, loading]);
+
 
     const handleIncidentSelect = (report) => {
         mapRef.current?.flyTo(report.longitude, report.latitude);
@@ -100,7 +148,7 @@ const DashboardPage = () => {
 
     const mapCenter = eventDetails ? [eventDetails.longitude, eventDetails.latitude] : null;
 
-    if (error) {
+    if (error && !usingMockData) {
          return (
             <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
                 <Title className="text-red-500">Error Loading Dashboard</Title>
@@ -112,6 +160,7 @@ const DashboardPage = () => {
 
     return (
         <div className="h-full flex flex-col">
+            {usingMockData && <MockDataBanner />}
             <header className="p-6">
                 <Title>{eventDetails?.name || 'Loading Event...'}</Title>
                 <Subtitle>Real-time Operations Dashboard</Subtitle>

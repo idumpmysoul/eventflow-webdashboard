@@ -1,32 +1,74 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import * as mockApi from '../services/mockApi.js';
+import MockDataBanner from '../components/MockDataBanner.jsx';
 import { Card, Title, Text, Grid, Col } from '@tremor/react';
 import { FireIcon } from '@heroicons/react/24/solid';
+
+const MOCK_DATA_TIMEOUT = 5000;
 
 const EventsSelectionPage = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [usingMockData, setUsingMockData] = useState(false);
   const navigate = useNavigate();
   const { user, selectEvent, logout } = useAuth();
+  
+  const dataLoadedRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    dataLoadedRef.current = false;
+
+    const loadMockData = async () => {
+        if (dataLoadedRef.current || !isMountedRef.current) return;
+        dataLoadedRef.current = true;
+        console.warn("Falling back to mock event data.");
+        setUsingMockData(true);
+        try {
+            const mockEvents = await mockApi.getEvents();
+            if (isMountedRef.current) setEvents(mockEvents);
+        } catch (mockErr) {
+            if (isMountedRef.current) setError(mockErr.message);
+        } finally {
+            if (isMountedRef.current) setLoading(false);
+        }
+    };
+
+    const timeoutId = setTimeout(loadMockData, MOCK_DATA_TIMEOUT);
+
     const fetchEvents = async () => {
+      setLoading(true);
+      setError(null);
+      setUsingMockData(false);
       try {
         const response = await api.getEvents();
+        if (dataLoadedRef.current || !isMountedRef.current) return;
+        clearTimeout(timeoutId);
+        dataLoadedRef.current = true;
         const eventsList = Array.isArray(response) ? response : response.data || [];
         setEvents(eventsList);
+        setLoading(false);
       } catch (err) {
+        if (dataLoadedRef.current || !isMountedRef.current) return;
+        clearTimeout(timeoutId);
         setError(err.message);
         console.error('Error fetching events:', err);
-      } finally {
-        setLoading(false);
+        loadMockData();
       }
     };
 
     fetchEvents();
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const handleSelectEvent = (eventId) => {
@@ -59,7 +101,7 @@ const EventsSelectionPage = () => {
   return (
     <div className="min-h-screen bg-background dark:bg-dark-background">
       {/* Header */}
-      <div className="bg-card dark:bg-dark-card border-b border-border dark:border-dark-border shadow-sm">
+      <div className="bg-card dark:bg-dark-card border-b border-border dark:border-dark-border shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
              <FireIcon className="w-8 h-8 text-primary" />
@@ -84,7 +126,8 @@ const EventsSelectionPage = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        {error && (
+        {usingMockData && <div className="mb-6"><MockDataBanner /></div>}
+        {error && !usingMockData && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 rounded-lg">
             <p className="font-medium">Error loading events: {error}</p>
           </div>
