@@ -162,7 +162,7 @@ const DashboardPage = () => {
         <div className="h-full flex flex-col">
             {usingMockData && <MockDataBanner />}
             <header className="p-6">
-                <Title>{eventDetails?.name || 'Loading Event...'}</Title>
+                <Title className='text-2xl'>{eventDetails?.name || 'Loading Event...'}</Title>
                 <Subtitle>Real-time Operations Dashboard</Subtitle>
             </header>
 

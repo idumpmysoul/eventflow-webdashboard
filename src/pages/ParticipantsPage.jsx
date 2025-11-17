@@ -95,13 +95,13 @@ const ParticipantsPage = () => {
     return (
         <div className="p-6 h-full flex flex-col">
             {usingMockData && <MockDataBanner />}
-            <Title>Event Participants</Title>
-            <Card className="mt-6 flex-grow">
-                 {loading ? (
+            <Title className='text-2xl m-auto'>Event Participants</Title>
+            <Card className="mt-6 flex-grow bg-card dark:bg-dark-card rounded-xl">
+                    {loading ? (
                     <div className="w-full h-full flex items-center justify-center">
                         <Text>Loading participant data...</Text>
                     </div>
-                 ) : (
+                    ) : (
                     <div className="h-full overflow-y-auto">
                         <Table>
                             <TableHead>
@@ -130,7 +130,7 @@ const ParticipantsPage = () => {
                             </TableBody>
                         </Table>
                     </div>
-                 )}
+                    )}
             </Card>
         </div>
     );

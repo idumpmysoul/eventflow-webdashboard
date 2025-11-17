@@ -74,8 +74,8 @@
               <span>Logout</span>
           </button>
           <div className="pt-4 mt-2 border-t border-border dark:border-dark-border text-center text-xs text-muted-foreground dark:text-dark-muted-foreground">
-            <p>&copy; 2024 EventFlow Inc.</p>
-            <p>v1.1.0</p>
+            <p>&copy; 2025 EventFlow Inc.</p>
+            <p>v0.0.5</p>
           </div>
         </div>
       </nav>

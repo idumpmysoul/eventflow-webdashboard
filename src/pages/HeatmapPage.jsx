@@ -97,18 +97,18 @@ const HeatmapPage = () => {
         <div className="h-full flex flex-col">
             {usingMockData && <MockDataBanner />}
             <header className="p-6">
-                <Title>Participant Heatmap</Title>
-                <Subtitle>Visualization of crowd density across the event</Subtitle>
+                <Title className='text-2xl'>Participant Heatmap</Title>
+                <Subtitle>Crowd density visualization</Subtitle>
             </header>
             <main className="flex-grow p-6 pt-0">
                 <div className="h-full w-full rounded-lg overflow-hidden">
-                     { !VITE_MAPBOX_TOKEN ? (
-                         <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg text-center p-4">
-                           <p>Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
+                        { !VITE_MAPBOX_TOKEN ? (
+                            <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg text-center p-4">
+                            <p>Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
                         </div>
                     ) : loading || !mapCenter ? (
                         <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg">
-                           <p>Loading map data...</p>
+                            <p>Loading map data...</p>
                         </div>
                     ) : (
                         <MapComponent

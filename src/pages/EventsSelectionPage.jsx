@@ -106,11 +106,11 @@ const EventsSelectionPage = () => {
       <div className="bg-card dark:bg-dark-card border-b border-border dark:border-dark-border shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-             <FireIcon className="w-8 h-8 text-primary" />
-             <div>
-                <h1 className="text-2xl font-bold text-foreground dark:text-dark-foreground">EventFlow</h1>
-                <p className="text-sm text-muted-foreground dark:text-dark-muted-foreground">Select an event to monitor</p>
-             </div>
+              <img src="/logo.svg" alt="EventFlow Logo" className=" w-auto h-16 text-primary" />
+              <div>
+                  <h1 className="text-2xl font-bold text-foreground dark:text-dark-foreground">EventFlow</h1>
+                  <p className="text-sm text-muted-foreground dark:text-dark-muted-foreground">Select an event to monitor</p>
+              </div>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground hidden sm:block">
@@ -144,18 +144,18 @@ const EventsSelectionPage = () => {
         ) : (
           <>
             <div className="mb-8">
-              <Title>Available Events</Title>
+              <Title className='text-2xl'>Available Events</Title>
               <Text>Select an event to start monitoring</Text>
             </div>
 
             <Grid numItemsLg={3} numItemsMd={2} numItemsSm={1} className="gap-6">
               {events.map((event) => (
                 <Col key={event.id}>
-                  <Card
+                  <Card cla
                     onClick={() => handleSelectEvent(event.id)}
-                    className="cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
+                    className="bg-card rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
                   >
-                    <div>
+                    <div className=''>
                       <Title className="text-lg group-hover:text-primary transition-colors">{event.name}</Title>
                       <Text className="mt-2 h-10">{event.description || 'No description available.'}</Text>
                       <div className="mt-4 space-y-2 text-sm">

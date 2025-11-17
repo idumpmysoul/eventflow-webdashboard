@@ -98,15 +98,15 @@ const StatisticsPage = () => {
     
     return (
         <div className="p-6">
-            {usingMockData && <MockDataBanner />}
-            <Title>Incident Statistics</Title>
+            {usingMockData && <MockDataBanner/>}
+            <Title className='text-2xl'>Incident Statistics</Title>
 
             {loading ? (
                 <div className="mt-6"><Text>Loading statistics...</Text></div>
             ) : (
                  <Grid numItemsLg={3} className="gap-6 mt-6">
                     <Col numColSpanLg={2}>
-                        <Card>
+                        <Card className='bg-card dark:bg-dark-card'>
                             <Title>Incidents by Category</Title>
                              <BarChart
                                 className="mt-6"
@@ -119,7 +119,7 @@ const StatisticsPage = () => {
                         </Card>
                     </Col>
                     <Col>
-                        <Card>
+                        <Card className='bg-card dark:bg-dark-card'>
                              <Title>Incidents by Status</Title>
                              <DonutChart
                                 className="mt-8"
@@ -131,7 +131,7 @@ const StatisticsPage = () => {
                         </Card>
                     </Col>
                     <Col>
-                         <Card>
+                         <Card className='bg-card dark:bg-dark-card'>
                             <Text>Total Incidents Reported</Text>
                             <Metric>{totalReports}</Metric>
                         </Card>
