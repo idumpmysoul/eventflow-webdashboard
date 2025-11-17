@@ -7,6 +7,7 @@ import * as mockApi from '../services/mockApi.js';
 import MockDataBanner from '../components/MockDataBanner.jsx';
 import { Card, Title, Text, Grid, Col } from '@tremor/react';
 import { FireIcon } from '@heroicons/react/24/solid';
+import ThemeToggleButton from '../components/ThemeToggleButton.jsx';
 
 const MOCK_DATA_TIMEOUT = 5000;
 
@@ -99,6 +100,7 @@ const EventsSelectionPage = () => {
   }
 
   return (
+    <div className="h-screen w-screen bg-background">
     <div className="min-h-screen bg-background dark:bg-dark-background">
       {/* Header */}
       <div className="bg-card dark:bg-dark-card border-b border-border dark:border-dark-border shadow-sm sticky top-0 z-10">
@@ -180,6 +182,8 @@ const EventsSelectionPage = () => {
           </>
         )}
       </div>
+    </div>
+    <ThemeToggleButton />
     </div>
   );
 };

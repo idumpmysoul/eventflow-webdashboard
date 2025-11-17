@@ -5,12 +5,8 @@
     UsersIcon,
     MapIcon,
     ChartBarIcon,
-    SunIcon,
-    MoonIcon,
-    FireIcon,
     ArrowRightOnRectangleIcon
   } from '@heroicons/react/24/outline';
-  import { useTheme } from '../contexts/ThemeContext';
   import { useAuth } from '../contexts/AuthContext';
   import api from '../services/api';
 
@@ -23,7 +19,6 @@
   ];
 
   const Navbar = () => {
-    const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -72,23 +67,11 @@
           </div>
           <button
               onClick={handleLogout}
-              className="flex items-center justify-start w-full px-3 py-2 rounded-lg transition-colors duration-150 text-muted-foreground hover:bg-muted-background hover:text-foreground dark:text-dark-muted-foreground dark:hover:bg-dark-muted-background dark:hover:text-dark-foreground"
+              className="flex items-center justify-start w-full px-3 py-2 rounded-lg transition-colors duration-150 bg-card text-muted-foreground hover:bg-muted-background hover:text-foreground dark:bg-card dark:hover:bg-dark-muted-background dark:hover:text-dark-foreground"
               aria-label="Logout"
           >
               <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
               <span>Logout</span>
-          </button>
-          <button
-            onClick={toggleTheme}
-            className="flex items-center justify-start w-full px-3 py-2 rounded-lg transition-colors duration-150 text-muted-foreground hover:bg-muted-background hover:text-foreground dark:text-dark-muted-foreground dark:hover:bg-dark-muted-background dark:hover:text-dark-foreground"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? (
-              <MoonIcon className="h-5 w-5 mr-3" />
-            ) : (
-              <SunIcon className="h-5 w-5 mr-3" />
-            )}
-            <span>Switch Theme</span>
           </button>
           <div className="pt-4 mt-2 border-t border-border dark:border-dark-border text-center text-xs text-muted-foreground dark:text-dark-muted-foreground">
             <p>&copy; 2024 EventFlow Inc.</p>

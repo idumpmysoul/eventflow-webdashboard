@@ -167,23 +167,23 @@ const DashboardPage = () => {
             </header>
 
             <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 pt-0 overflow-hidden">
-                <aside className="lg:col-span-1 h-full overflow-hidden">
+                <aside className="lg:col-span-1 h-full overflow-hidden shadow-xl bg-card dark:bg-dark-card rounded-lg">
                     {loading ? (
-                        <div className="w-full h-full flex items-center justify-center bg-card dark:bg-dark-card rounded-lg p-4">
-                           <p>Loading incident feed...</p>
+                        <div className="w-full h-full flex items-center justify-center bg-card dark:bg-dark-card rounded-lg p-4 m-4">
+                            <p>Loading incident feed...</p>
                         </div>
                     ) : (
                         <IncidentFeed reports={reports} onIncidentSelect={handleIncidentSelect} />
                     )}
                 </aside>
-                <main className="lg:col-span-2 h-full rounded-lg overflow-hidden">
+                <main className="lg:col-span-2 h-full rounded-lg overflow-hidden shadow-xl">
                     { !VITE_MAPBOX_TOKEN ? (
-                         <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg text-center p-4">
-                           <p>Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
+                            <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg text-center p-4">
+                            <p>Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
                         </div>
                     ) : loading || !mapCenter ? (
                         <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg">
-                           <p>Loading map...</p>
+                            <p>Loading map...</p>
                         </div>
                     ) : (
                         <MapComponent

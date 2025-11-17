@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import ThemeToggleButton from './ThemeToggleButton.jsx';
 
 const Layout = () => {
   return (
@@ -9,6 +10,7 @@ const Layout = () => {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <ThemeToggleButton />
     </div>
   );
 };
