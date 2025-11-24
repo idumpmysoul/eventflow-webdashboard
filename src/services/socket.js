@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const socket = io(API_ORIGIN, {
     autoConnect: false,

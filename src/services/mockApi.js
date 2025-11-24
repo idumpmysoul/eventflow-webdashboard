@@ -62,6 +62,7 @@ const participantLocations = Array.from({ length: PARTICIPANT_COUNT }, () => {
     };
 });
 
+let virtualAreas = [];
 
 // --- API Functions ---
 
@@ -137,5 +138,32 @@ export const getParticipants = () => {
             }));
             resolve(participantDetails);
         }, 400);
+    });
+};
+
+export const getVirtualAreas = () => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(virtualAreas);
+        }, 300);
+    });
+};
+
+export const createVirtualArea = (eventId, areaData) => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const newArea = { ...areaData, id: faker.string.uuid() };
+            virtualAreas.push(newArea);
+            resolve(newArea);
+        }, 300);
+    });
+};
+
+export const deleteVirtualArea = (areaId) => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            virtualAreas = virtualAreas.filter(a => a.id !== areaId);
+            resolve({ success: true });
+        }, 300);
     });
 };

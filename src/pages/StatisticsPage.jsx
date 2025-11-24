@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
@@ -61,7 +60,8 @@ const StatisticsPage = () => {
                 clearTimeout(timeoutId);
                 dataLoadedRef.current = true;
                 
-                setReports(data.data || data);
+                // api.js now unwraps data
+                setReports(data);
                 setLoading(false);
             } catch (err) {
                 if (dataLoadedRef.current || !isMountedRef.current) return;
@@ -91,7 +91,11 @@ const StatisticsPage = () => {
         }, {});
 
         const categoryData = Object.entries(categoryCounts).map(([name, value]) => ({ name, 'Number of Reports': value }));
-        const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
+        // Format status labels
+        const statusData = Object.entries(statusCounts).map(([name, value]) => ({ 
+            name: name.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase()), 
+            value 
+        }));
         
         return { categoryData, statusData, totalReports: reports.length };
     }, [reports]);

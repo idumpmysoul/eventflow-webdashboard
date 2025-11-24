@@ -1,6 +1,12 @@
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const getAuthToken = () => localStorage.getItem('authToken');
+
+// Helper to extract data from backend response
+const extractData = (response) => {
+  return response.data !== undefined ? response.data : response;
+};
 
 const handleResponse = async (res) => {
   if (res.status === 401) {
@@ -12,12 +18,18 @@ const handleResponse = async (res) => {
     throw new Error('Unauthorized - Please login again');
   }
 
+  const json = await res.json().catch(() => ({ message: res.statusText }));
+
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(`HTTP ${res.status}: ${errorData.message || res.statusText}`);
+    throw new Error(`HTTP ${res.status}: ${json.message || json.error || res.statusText}`);
   }
 
-  return res.json();
+  // Handle backend response wrapper
+  if (json.success === false) {
+    throw new Error(json.message || json.error || 'API Error');
+  }
+
+  return extractData(json);
 };
 
 const headers = (includeAuth = true) => {
@@ -52,10 +64,15 @@ const api = {
   },
 
   async logoutUser() {
+    // Logout often doesn't return data, just success status
     const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
       headers: headers(true),
     });
+    // We still verify response is OK
+    if (res.status === 401 || res.ok) {
+        return true;
+    }
     return handleResponse(res);
   },
 
@@ -76,9 +93,36 @@ const api = {
     return handleResponse(res);
   },
 
+  // ============ VIRTUAL AREAS (ZONES) ============
+  async getVirtualAreas(eventId) {
+    const res = await fetch(`${API_BASE}/events/${eventId}/virtual-areas`, {
+      method: 'GET',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  async createVirtualArea(eventId, areaData) {
+    const res = await fetch(`${API_BASE}/events/${eventId}/virtual-areas`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(areaData),
+    });
+    return handleResponse(res);
+  },
+
+  async deleteVirtualArea(areaId) {
+    const res = await fetch(`${API_BASE}/events/virtual-areas/${areaId}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
   // ============ PARTICIPANT LOCATIONS ============
   async getParticipantLocations(eventId) {
-    const res = await fetch(`${API_BASE}/locations/event/${eventId}`, {
+    // Endpoint: GET /events/:eventId/locations
+    const res = await fetch(`${API_BASE}/events/${eventId}/locations`, {
       method: 'GET',
       headers: headers(true),
     });
@@ -87,6 +131,7 @@ const api = {
 
   // ============ PARTICIPANTS ============
   async getEventParticipants(eventId) {
+    // Endpoint: GET /events/:eventId/participants
     const res = await fetch(`${API_BASE}/events/${eventId}/participants`, {
       method: 'GET',
       headers: headers(true),
@@ -96,17 +141,21 @@ const api = {
 
   // ============ REPORTS ============
   async getReports(eventId) {
-     const res = await fetch(`${API_BASE}/reports/event/${eventId}`, {
+     // Endpoint: GET /reports/events/:eventId/reports
+     const res = await fetch(`${API_BASE}/reports/events/${eventId}/reports`, {
         method: 'GET',
         headers: headers(true),
       });
-    const data = await handleResponse(res);
-    // Assuming the API returns reports that need timestamps converted
-    const reports = data.data || data;
-    return reports.map(report => ({
-        ...report,
-        createdAt: new Date(report.createdAt) // Ensure createdAt is a Date object
-    }));
+    const reports = await handleResponse(res);
+    
+    // Ensure reports is an array before mapping
+    if (Array.isArray(reports)) {
+        return reports.map(report => ({
+            ...report,
+            createdAt: new Date(report.createdAt) // Ensure createdAt is a Date object
+        }));
+    }
+    return [];
   },
 };
 

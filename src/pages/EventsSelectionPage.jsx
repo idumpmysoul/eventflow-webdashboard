@@ -56,7 +56,9 @@ const EventsSelectionPage = () => {
         if (dataLoadedRef.current || !isMountedRef.current) return;
         clearTimeout(timeoutId);
         dataLoadedRef.current = true;
-        const eventsList = Array.isArray(response) ? response : response.data || [];
+        
+        // api.js now unwraps the response
+        const eventsList = Array.isArray(response) ? response : [];
         setEvents(eventsList);
         setLoading(false);
       } catch (err) {
@@ -151,13 +153,13 @@ const EventsSelectionPage = () => {
             <Grid numItemsLg={3} numItemsMd={2} numItemsSm={1} className="gap-6">
               {events.map((event) => (
                 <Col key={event.id}>
-                  <Card cla
+                  <Card 
                     onClick={() => handleSelectEvent(event.id)}
                     className="bg-card rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
                   >
                     <div className=''>
                       <Title className="text-lg group-hover:text-primary transition-colors">{event.name}</Title>
-                      <Text className="mt-2 h-10">{event.description || 'No description available.'}</Text>
+                      <Text className="mt-2 h-10 line-clamp-2">{event.description || 'No description available.'}</Text>
                       <div className="mt-4 space-y-2 text-sm">
                         <p className="text-muted-foreground dark:text-dark-muted-foreground">
                           📅 {new Date(event.startDate).toLocaleDateString()}

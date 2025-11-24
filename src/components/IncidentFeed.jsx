@@ -27,6 +27,7 @@ const statusConfig = {
 };
 
 const timeAgo = (date) => {
+  if (!date) return "";
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
   let interval = seconds / 31536000;
   if (interval > 1) return Math.floor(interval) + "y ago";
@@ -45,7 +46,7 @@ const IncidentFeed = ({ reports, onIncidentSelect }) => {
   return (
     <Card className="h-full flex flex-col">
       <Title>Live Incident Feed</Title>
-      <div className="flex-grow overflow-y-auto mt-4 pr-1">
+      <div className="flex-grow overflow-y-scroll no-scroll-bar mt-4 pr-1">
         <List>
           {reports.map((report) => {
             const config = categoryConfig[report.category] || categoryConfig.OTHER;
@@ -65,10 +66,10 @@ const IncidentFeed = ({ reports, onIncidentSelect }) => {
                   <div className="flex-1">
                     <p className="text-tremor-content-strong dark:text-dark-tremor-content-strong font-medium">{report.description}</p>
                     <p className="text-tremor-content dark:text-dark-tremor-content text-sm">
-                      Reported by {report.reporterName} • {timeAgo(report.createdAt)}
+                      Reported by {report.reporterName || 'Unknown'} • {timeAgo(report.createdAt)}
                     </p>
                   </div>
-                  <Badge color={status.color}>{report.status.replace('_', ' ').toLowerCase()}</Badge>
+                  <Badge color={status.color}>{report.status ? report.status.replace(/_/g, ' ').toLowerCase() : 'unknown'}</Badge>
                 </div>
               </ListItem>
             );

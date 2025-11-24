@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
@@ -66,6 +65,7 @@ const HeatmapPage = () => {
             setError(null);
             setUsingMockData(false);
             try {
+                // Endpoints updated in api.js
                 const [eventResponse, locationsResponse] = await Promise.all([
                     api.getEventById(selectedEventId),
                     api.getParticipantLocations(selectedEventId),
@@ -75,8 +75,9 @@ const HeatmapPage = () => {
                 clearTimeout(timeoutId);
                 dataLoadedRef.current = true;
 
-                setEventDetails(eventResponse.data || eventResponse);
-                setParticipantLocations(locationsResponse.data || locationsResponse);
+                // api.js now unwraps data
+                setEventDetails(eventResponse);
+                setParticipantLocations(locationsResponse);
                 setLoading(false);
             } catch (err) {
                 if (dataLoadedRef.current || !isMountedRef.current) return;

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
@@ -66,13 +65,15 @@ const ParticipantsPage = () => {
             setError(null);
             setUsingMockData(false);
             try {
+                // Using getEventParticipants instead of mock
                 const response = await api.getEventParticipants(selectedEventId);
                 
                 if (dataLoadedRef.current || !isMountedRef.current) return;
                 clearTimeout(timeoutId);
                 dataLoadedRef.current = true;
 
-                setParticipants(response.data || response);
+                // api.js now handles extracting data from the response object
+                setParticipants(response);
                 setLoading(false);
             } catch (err) {
                 if (dataLoadedRef.current || !isMountedRef.current) return;
@@ -107,8 +108,9 @@ const ParticipantsPage = () => {
                             <TableHead>
                                 <TableRow>
                                     <TableHeaderCell>Name</TableHeaderCell>
+                                    <TableHeaderCell>Email</TableHeaderCell>
                                     <TableHeaderCell>User ID</TableHeaderCell>
-                                    <TableHeaderCell>Entry Time</TableHeaderCell>
+                                    <TableHeaderCell>Joined At</TableHeaderCell>
                                     <TableHeaderCell>Status</TableHeaderCell>
                                 </TableRow>
                             </TableHead>
@@ -116,11 +118,12 @@ const ParticipantsPage = () => {
                                 {participants.map((item) => (
                                     <TableRow key={item.id}>
                                         <TableCell>{item.name}</TableCell>
+                                        <TableCell>{item.email || 'N/A'}</TableCell>
                                         <TableCell>
                                             <Text>{item.id}</Text>
                                         </TableCell>
                                         <TableCell>
-                                            <Text>{item.entryTime ? new Date(item.entryTime).toLocaleString() : 'N/A'}</Text>
+                                            <Text>{item.joinedAt ? new Date(item.joinedAt).toLocaleString() : 'N/A'}</Text>
                                         </TableCell>
                                         <TableCell>
                                             <Badge color={statusColor[item.status] || 'slate'}>{item.status || 'Unknown'}</Badge>
