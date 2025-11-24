@@ -1,8 +1,6 @@
 export const ReportCategory = {
   SECURITY: 'SECURITY',
-  HEALTH: 'HEALTH',
   CROWD: 'CROWD',
-  LOST_FOUND: 'LOST_FOUND',
   FACILITY: 'FACILITY',
   OTHER: 'OTHER'
 };
@@ -10,6 +8,5 @@ export const ReportCategory = {
 export const ReportStatus = {
   PENDING: 'PENDING',
   IN_PROGRESS: 'IN_PROGRESS',
-  RESOLVED: 'RESOLVED',
-  CLOSED: 'CLOSED'
+  RESOLVED: 'RESOLVED'
 };

@@ -46,7 +46,7 @@ const headers = (includeAuth = true) => {
 const api = {
   // ============ AUTHENTICATION ============
   async loginUser(email, password) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(`${API_BASE}/auths/login`, {
       method: 'POST',
       headers: headers(false),
       body: JSON.stringify({ email, password }),
@@ -55,7 +55,7 @@ const api = {
   },
 
   async registerUser(userData) {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+    const res = await fetch(`${API_BASE}/auths/register`, {
       method: 'POST',
       headers: headers(false),
       body: JSON.stringify(userData),
@@ -64,16 +64,9 @@ const api = {
   },
 
   async logoutUser() {
-    // Logout often doesn't return data, just success status
-    const res = await fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      headers: headers(true),
-    });
-    // We still verify response is OK
-    if (res.status === 401 || res.ok) {
-        return true;
-    }
-    return handleResponse(res);
+    // Backend is stateless JWT, so just return success immediately.
+    // The client-side token removal happens in the AuthContext or call site.
+    return Promise.resolve({ success: true });
   },
 
   // ============ EVENTS ============
@@ -95,7 +88,8 @@ const api = {
 
   // ============ VIRTUAL AREAS (ZONES) ============
   async getVirtualAreas(eventId) {
-    const res = await fetch(`${API_BASE}/events/${eventId}/virtual-areas`, {
+    // Match Backend: GET /virtual-area/:eventId/get-all
+    const res = await fetch(`${API_BASE}/virtual-area/${eventId}/get-all`, {
       method: 'GET',
       headers: headers(true),
     });
@@ -103,7 +97,8 @@ const api = {
   },
 
   async createVirtualArea(eventId, areaData) {
-    const res = await fetch(`${API_BASE}/events/${eventId}/virtual-areas`, {
+    // Match Backend: POST /virtual-area/:id (id is eventId)
+    const res = await fetch(`${API_BASE}/virtual-area/${eventId}`, {
       method: 'POST',
       headers: headers(true),
       body: JSON.stringify(areaData),
@@ -112,7 +107,8 @@ const api = {
   },
 
   async deleteVirtualArea(areaId) {
-    const res = await fetch(`${API_BASE}/events/virtual-areas/${areaId}`, {
+    // Match Backend: DELETE /virtual-area/:areaId
+    const res = await fetch(`${API_BASE}/virtual-area/${areaId}`, {
       method: 'DELETE',
       headers: headers(true),
     });
@@ -121,8 +117,8 @@ const api = {
 
   // ============ PARTICIPANT LOCATIONS ============
   async getParticipantLocations(eventId) {
-    // Endpoint: GET /events/:eventId/locations
-    const res = await fetch(`${API_BASE}/events/${eventId}/locations`, {
+    // Match Backend: GET /locations/:eventId
+    const res = await fetch(`${API_BASE}/locations/${eventId}`, {
       method: 'GET',
       headers: headers(true),
     });
@@ -131,8 +127,8 @@ const api = {
 
   // ============ PARTICIPANTS ============
   async getEventParticipants(eventId) {
-    // Endpoint: GET /events/:eventId/participants
-    const res = await fetch(`${API_BASE}/events/${eventId}/participants`, {
+    // Match Backend: GET /event-participants/:eventId/get-list
+    const res = await fetch(`${API_BASE}/event-participants/${eventId}/get-list`, {
       method: 'GET',
       headers: headers(true),
     });
@@ -141,8 +137,8 @@ const api = {
 
   // ============ REPORTS ============
   async getReports(eventId) {
-     // Endpoint: GET /reports/events/:eventId/reports
-     const res = await fetch(`${API_BASE}/reports/events/${eventId}/reports`, {
+     // Match Backend: GET /reports/:id/my-reports
+     const res = await fetch(`${API_BASE}/reports/${eventId}/my-reports`, {
         method: 'GET',
         headers: headers(true),
       });

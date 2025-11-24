@@ -141,10 +141,11 @@ const DashboardPage = () => {
         socket.connect();
         socket.emit('joinEventRoom', selectedEventId);
 
-        socket.on('participantLocation', (newLocation) => {
+        // Handle location updates from backend
+        socket.on('locationUpdate', (newLocation) => {
             setParticipantLocations((prevLocations) => {
                 if (!prevLocations) return [newLocation];
-                const existingIndex = prevLocations.findIndex((p) => p.userId === newLocation.userId || p.id === newLocation.userId);
+                const existingIndex = prevLocations.findIndex((p) => p.userId === newLocation.userId);
                 if (existingIndex > -1) {
                     const updatedLocations = [...prevLocations];
                     updatedLocations[existingIndex] = { ...updatedLocations[existingIndex], ...newLocation };
@@ -154,21 +155,45 @@ const DashboardPage = () => {
             });
         });
 
-        socket.on('notification', (newReport) => {
-            setReports((prevReports) => [{ ...newReport, createdAt: new Date(newReport.createdAt) }, ...prevReports]);
+        // Handle live report updates (for immediate map marker)
+        socket.on('liveReport', (newReportPayload) => {
+             setReports((prevReports) => {
+                 // Check if we need to update an existing report (e.g. status change) or add new
+                 const existingIndex = prevReports.findIndex(r => r.id === newReportPayload.reportId);
+                 const reportObj = {
+                     id: newReportPayload.reportId,
+                     category: newReportPayload.category,
+                     description: newReportPayload.description || newReportPayload.message,
+                     status: newReportPayload.status || 'PENDING',
+                     latitude: newReportPayload.latitude,
+                     longitude: newReportPayload.longitude,
+                     reporterName: newReportPayload.reporterName || 'Unknown',
+                     createdAt: new Date(newReportPayload.createdAt || Date.now()),
+                     mediaUrls: newReportPayload.mediaUrl ? [newReportPayload.mediaUrl] : []
+                 };
+
+                 if (existingIndex > -1) {
+                     const updated = [...prevReports];
+                     updated[existingIndex] = { ...updated[existingIndex], ...reportObj };
+                     return updated;
+                 }
+                 return [reportObj, ...prevReports];
+             });
         });
 
         return () => {
             socket.emit('leaveEventRoom', selectedEventId);
-            socket.off('participantLocation');
-            socket.off('notification');
+            socket.off('locationUpdate');
+            socket.off('liveReport');
             socket.disconnect();
         };
     }, [selectedEventId, usingMockData, loading]);
 
 
     const handleIncidentSelect = (report) => {
-        mapRef.current?.flyTo(report.longitude, report.latitude);
+        if (report.latitude && report.longitude) {
+            mapRef.current?.flyTo(report.longitude, report.latitude);
+        }
     };
 
     // --- Zone Management Handlers ---

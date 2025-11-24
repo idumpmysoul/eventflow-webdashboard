@@ -2,9 +2,7 @@ import React from 'react';
 import { Card, List, ListItem, Badge, Title } from '@tremor/react';
 import {
   ShieldExclamationIcon,
-  HeartIcon,
   UsersIcon,
-  MagnifyingGlassIcon,
   WrenchScrewdriverIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -12,9 +10,7 @@ import { ReportCategory, ReportStatus } from '../types.js';
 
 const categoryConfig = {
   [ReportCategory.SECURITY]: { icon: ShieldExclamationIcon, color: 'red' },
-  [ReportCategory.HEALTH]: { icon: HeartIcon, color: 'pink' },
   [ReportCategory.CROWD]: { icon: UsersIcon, color: 'yellow' },
-  [ReportCategory.LOST_FOUND]: { icon: MagnifyingGlassIcon, color: 'blue' },
   [ReportCategory.FACILITY]: { icon: WrenchScrewdriverIcon, color: 'indigo' },
   [ReportCategory.OTHER]: { icon: QuestionMarkCircleIcon, color: 'gray' },
 };
@@ -23,7 +19,6 @@ const statusConfig = {
   [ReportStatus.PENDING]: { color: 'yellow' },
   [ReportStatus.IN_PROGRESS]: { color: 'blue' },
   [ReportStatus.RESOLVED]: { color: 'green' },
-  [ReportStatus.CLOSED]: { color: 'gray' },
 };
 
 const timeAgo = (date) => {
@@ -50,7 +45,7 @@ const IncidentFeed = ({ reports, onIncidentSelect }) => {
         <List>
           {reports.map((report) => {
             const config = categoryConfig[report.category] || categoryConfig.OTHER;
-            const status = statusConfig[report.status] || statusConfig.CLOSED;
+            const status = statusConfig[report.status] || { color: 'gray' };
             const Icon = config.icon;
 
             return (
@@ -66,7 +61,7 @@ const IncidentFeed = ({ reports, onIncidentSelect }) => {
                   <div className="flex-1">
                     <p className="text-tremor-content-strong dark:text-dark-tremor-content-strong font-medium">{report.description}</p>
                     <p className="text-tremor-content dark:text-dark-tremor-content text-sm">
-                      Reported by {report.reporterName || 'Unknown'} • {timeAgo(report.createdAt)}
+                      Reported by {report.reporterName || report.reporter?.name || 'Unknown'} • {timeAgo(report.createdAt)}
                     </p>
                   </div>
                   <Badge color={status.color}>{report.status ? report.status.replace(/_/g, ' ').toLowerCase() : 'unknown'}</Badge>
