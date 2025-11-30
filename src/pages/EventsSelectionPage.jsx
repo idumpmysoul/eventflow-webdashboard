@@ -1,13 +1,11 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import * as mockApi from '../services/mockApi.js';
 import MockDataBanner from '../components/MockDataBanner.jsx';
-import { Card, Title, Text, Grid, Col } from '@tremor/react';
-import { FireIcon } from '@heroicons/react/24/solid';
 import ThemeToggleButton from '../components/ThemeToggleButton.jsx';
+import { CalendarIcon, MapPinIcon, UsersIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const MOCK_DATA_TIMEOUT = 5000;
 
@@ -57,7 +55,6 @@ const EventsSelectionPage = () => {
         clearTimeout(timeoutId);
         dataLoadedRef.current = true;
         
-        // api.js now unwraps the response
         const eventsList = Array.isArray(response) ? response : [];
         setEvents(eventsList);
         setLoading(false);
@@ -92,100 +89,86 @@ const EventsSelectionPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background dark:bg-dark-background">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-200">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground dark:text-dark-muted-foreground">Loading events...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading events...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen bg-background">
-    <div className="min-h-screen bg-background dark:bg-dark-background">
-      {/* Header */}
-      <div className="bg-card dark:bg-dark-card border-b border-border dark:border-dark-border shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="EventFlow Logo" className=" w-auto h-16 text-primary" />
-              <div>
-                  <h1 className="text-2xl font-bold text-foreground dark:text-dark-foreground">EventFlow</h1>
-                  <p className="text-sm text-muted-foreground dark:text-dark-muted-foreground">Select an event to monitor</p>
-              </div>
+    <div className="min-h-screen bg-slate-950 p-6 md:p-12 font-sans text-slate-200">
+      <div className="max-w-6xl mx-auto">
+        {usingMockData && <div className="mb-6"><MockDataBanner /></div>}
+        
+        <header className="mb-12 flex justify-between items-end border-b border-slate-800 pb-6">
+            <div>
+                <h1 className="text-3xl font-bold text-white mb-2">Select Event</h1>
+                <p className="text-slate-400">Manage and monitor your assigned events.</p>
+            </div>
+            <div className="flex items-center gap-4">
+                <span className="text-sm text-slate-500 hidden sm:block">
+                  Logged in as <strong>{user?.name || user?.email}</strong>
+                </span>
+                <button onClick={handleLogout} className="text-sm text-red-400 hover:text-red-300 transition-colors">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        {error && !usingMockData && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg">
+            <p className="font-medium">Error: {error}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground hidden sm:block">
-              Welcome, <strong>{user?.name || user?.email || 'User'}</strong>
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition"
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map(event => (
+            <div 
+              key={event.id} 
+              onClick={() => handleSelectEvent(event.id)}
+              className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-indigo-500/50 hover:bg-slate-800 transition-all cursor-pointer group relative overflow-hidden shadow-lg"
             >
-              Logout
-            </button>
+              <div className="flex justify-between items-start mb-4">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center bg-slate-800 text-slate-400 group-hover:bg-indigo-500/10 group-hover:text-indigo-500 transition-colors`}>
+                    <CalendarIcon className="w-6 h-6" />
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-900/30 text-green-400 border border-green-500/20">
+                    LIVE
+                </span>
+              </div>
+              
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors truncate">{event.name}</h3>
+              
+              <div className="space-y-2 text-sm text-slate-400 mb-6">
+                <div className="flex items-center gap-2">
+                    <MapPinIcon className="w-4 h-4" />
+                    {event.location || event.locationName || 'Unknown Location'}
+                </div>
+                <div className="flex items-center gap-2">
+                    <UsersIcon className="w-4 h-4" />
+                    {event.totalParticipants || 0} participants
+                </div>
+              </div>
+
+              <div className="flex items-center text-indigo-400 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                Open Dashboard <ArrowRightIcon className="w-4 h-4 ml-1" />
+              </div>
+            </div>
+          ))}
+          
+          {/* Add New Event Placeholder */}
+          <div className="border border-dashed border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-600 transition-all cursor-pointer min-h-[200px] hover:bg-slate-900/50">
+            <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center mb-3 border border-slate-800">
+                <span className="text-2xl">+</span>
+            </div>
+            <span>Create New Event</span>
           </div>
         </div>
       </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        {usingMockData && <div className="mb-6"><MockDataBanner /></div>}
-        {error && !usingMockData && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 rounded-lg">
-            <p className="font-medium">Error loading events: {error}</p>
-          </div>
-        )}
-
-        {events.length === 0 && !loading ? (
-          <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground dark:text-dark-muted-foreground">
-              No events available at this time.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-8">
-              <Title className='text-2xl'>Available Events</Title>
-              <Text>Select an event to start monitoring</Text>
-            </div>
-
-            <Grid numItemsLg={3} numItemsMd={2} numItemsSm={1} className="gap-6">
-              {events.map((event) => (
-                <Col key={event.id}>
-                  <Card 
-                    onClick={() => handleSelectEvent(event.id)}
-                    className="bg-card rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
-                  >
-                    <div className=''>
-                      <Title className="text-lg group-hover:text-primary transition-colors">{event.name}</Title>
-                      <Text className="mt-2 h-10 line-clamp-2">{event.description || 'No description available.'}</Text>
-                      <div className="mt-4 space-y-2 text-sm">
-                        <p className="text-muted-foreground dark:text-dark-muted-foreground">
-                          📅 {new Date(event.startDate).toLocaleDateString()}
-                        </p>
-                        {event.location && (
-                          <p className="text-muted-foreground dark:text-dark-muted-foreground">
-                            📍 {event.location}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleSelectEvent(event.id); }}
-                        className="mt-6 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 rounded-lg transition"
-                      >
-                        View Dashboard
-                      </button>
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-            </Grid>
-          </>
-        )}
-      </div>
-    </div>
-    <ThemeToggleButton />
+      <ThemeToggleButton />
     </div>
   );
 };

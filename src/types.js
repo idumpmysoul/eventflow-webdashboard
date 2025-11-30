@@ -10,3 +10,4 @@ export const ReportStatus = {
   IN_PROGRESS: 'IN_PROGRESS',
   RESOLVED: 'RESOLVED'
 };
+
