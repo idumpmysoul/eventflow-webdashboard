@@ -43,12 +43,11 @@ const MapComponent = forwardRef(({
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-        // Initialize Draw
+        // Initialize Draw with NO controls (we toggle modes manually)
         draw.current = new MapboxDraw({
             displayControlsDefault: false,
-            controls: { polygon: true, trash: true },
+            controls: { }, 
             styles: [
-                // Custom draw styles for better visibility in dark mode
                 {
                     "id": "gl-draw-polygon-fill-inactive",
                     "type": "fill",
@@ -85,6 +84,8 @@ const MapComponent = forwardRef(({
             ]
         });
 
+        map.current.addControl(draw.current);
+
         map.current.on('load', () => {
             if (!map.current) return;
             setMapLoaded(true);
@@ -112,6 +113,25 @@ const MapComponent = forwardRef(({
                 source: 'zones-data',
                 paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-dasharray': [2, 2] }
             });
+            
+            // --- Fix: Zone Labels ---
+            map.current.addLayer({
+                id: 'zones-labels',
+                type: 'symbol',
+                source: 'zones-data',
+                layout: {
+                    'text-field': ['get', 'name'],
+                    'text-size': 12,
+                    'text-transform': 'uppercase',
+                    'text-offset': [0, 0],
+                    'text-anchor': 'center'
+                },
+                paint: {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#000000',
+                    'text-halo-width': 2
+                }
+            });
 
             // Draw Event Listeners
             map.current.on('draw.create', (e) => {
@@ -120,6 +140,19 @@ const MapComponent = forwardRef(({
                     onZoneCreated(feature);
                     // Immediately remove from draw so it doesn't conflict with the 'zones' prop layer
                     draw.current.delete(feature.id); 
+                    // Reset mode to prevent continuous drawing if desired, or keep it
+                    // draw.current.changeMode('simple_select');
+                    
+                    // Reset cursor
+                    if(map.current.getCanvas()) map.current.getCanvas().style.cursor = '';
+                }
+            });
+            
+            map.current.on('draw.modechange', (e) => {
+                if(e.mode === 'draw_polygon') {
+                     map.current.getCanvas().style.cursor = 'crosshair';
+                } else {
+                     map.current.getCanvas().style.cursor = '';
                 }
             });
 
@@ -191,14 +224,15 @@ const MapComponent = forwardRef(({
     // --- Zone Mode Toggle ---
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
+        
         if (isManageZonesMode) {
-            if (!map.current.hasControl(draw.current)) {
-                map.current.addControl(draw.current, 'top-right');
-            }
+            // Activate draw mode
+            draw.current.changeMode('draw_polygon');
+            map.current.getCanvas().style.cursor = 'crosshair';
         } else {
-            if (map.current.hasControl(draw.current)) {
-                map.current.removeControl(draw.current);
-            }
+            // Deactivate draw mode
+            draw.current.changeMode('simple_select');
+            map.current.getCanvas().style.cursor = '';
         }
     }, [isManageZonesMode, mapLoaded]);
 
@@ -212,7 +246,7 @@ const MapComponent = forwardRef(({
                 features: zones.map(zone => ({
                     type: 'Feature',
                     id: zone.id,
-                    properties: { color: zone.color || '#888888', name: zone.name, label: zone.name },
+                    properties: { color: zone.color || '#888888', name: zone.name },
                     geometry: zone.area.geometry || zone.area
                 }))
             });

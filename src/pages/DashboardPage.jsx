@@ -7,6 +7,7 @@ import socket from '../services/socket.js';
 import MapComponent from '../components/MapComponent.jsx';
 import IncidentFeed from '../components/IncidentFeed.jsx';
 import IncidentDetailModal from '../components/IncidentDetailModal.jsx';
+import ZoneSidebar from '../components/ZoneSidebar.jsx';
 import MockDataBanner from '../components/MockDataBanner.jsx';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,7 +21,7 @@ import {
     MagnifyingGlassIcon,
     BellIcon,
     SignalIcon,
-    Battery50Icon
+    Square3Stack3DIcon
 } from '@heroicons/react/24/outline';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -210,7 +211,7 @@ const DashboardPage = () => {
         };
     }, [selectedEventId, usingMockData, loading]);
 
-    // --- Zone Management ---
+    // --- Zone Management Handlers ---
     const handleZoneCreated = (feature) => {
         setTempZoneFeature(feature);
         setNewZoneName(`Zone ${zones.length + 1}`);
@@ -238,6 +239,24 @@ const DashboardPage = () => {
             console.error("Failed to save zone:", err);
             alert("Failed to save zone. Please try again.");
         }
+    };
+
+    const handleDeleteZone = async (zoneId) => {
+        if(!confirm("Delete this zone?")) return;
+        try {
+            if(!usingMockData) await api.deleteVirtualArea(zoneId);
+            else await mockApi.deleteVirtualArea(zoneId);
+            setZones(prev => prev.filter(z => z.id !== zoneId));
+        } catch(err) {
+            console.error(err);
+            alert("Failed to delete zone");
+        }
+    };
+
+    const handleUpdateZone = async (zoneId, updateData) => {
+        // In a real app, you'd implement api.updateVirtualArea
+        // For now, just update local state to reflect changes
+        setZones(prev => prev.map(z => z.id === zoneId ? { ...z, ...updateData } : z));
     };
 
     const closeZoneModal = () => {
@@ -417,7 +436,7 @@ const DashboardPage = () => {
                         { label: 'Active Participants', val: activeParticipantsCount, sub: '+12% vs last hr', icon: UsersIcon, color: 'text-blue-500', bg: 'bg-blue-500/10' },
                         { label: 'Open Incidents', val: openIncidentsCount, sub: 'Requires attention', icon: ExclamationTriangleIcon, color: 'text-red-500', bg: 'bg-red-500/10' },
                         { label: 'Crowd Density', val: 'Moderate', sub: 'Zone B peaking', icon: SignalIcon, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-                        { label: 'Avg Battery', val: '78%', sub: 'Stable', icon: Battery50Icon, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                        { label: 'Active Zones', val: zones.length, sub: 'Geofenced areas', icon: Square3Stack3DIcon, color: 'text-purple-500', bg: 'bg-purple-500/10' },
                     ].map((stat, idx) => (
                         <div key={idx} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-start justify-between hover:border-slate-700 transition-colors">
                             <div>
@@ -433,9 +452,9 @@ const DashboardPage = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex gap-6 min-h-0">
+                <div className="flex-1 flex gap-6 min-h-0 relative">
                     {/* Map Section */}
-                    <div className="flex-[3] bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden shadow-inner group">
+                    <div className="flex-grow bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden shadow-inner group flex flex-col">
                         {isManageZonesMode && (
                             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-indigo-600 text-white px-4 py-1.5 rounded-full shadow-lg text-xs font-bold uppercase tracking-wide animate-pulse">
                                 Drawing Mode Active
@@ -456,7 +475,7 @@ const DashboardPage = () => {
                             <MapComponent
                                 ref={mapRef}
                                 center={mapCenter}
-                                participantLocations={filteredParticipants} // Use filtered
+                                participantLocations={filteredParticipants}
                                 mapboxToken={VITE_MAPBOX_TOKEN}
                                 participantDisplayMode="dots"
                                 theme="dark" 
@@ -467,28 +486,40 @@ const DashboardPage = () => {
                         )}
                     </div>
 
-                    {/* Right Side Feed */}
-                    <div className="flex-1 max-w-md bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
-                        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/95 backdrop-blur z-10">
-                            <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-wide">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                Incident Feed
-                            </h3>
-                            <span className="text-[10px] font-mono text-slate-500 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">
-                                {filteredReports.length} Active
-                            </span>
+                    {/* Zone Sidebar Panel (Conditional) */}
+                    {isManageZonesMode && (
+                         <ZoneSidebar 
+                            zones={zones} 
+                            onDelete={handleDeleteZone} 
+                            onUpdate={handleUpdateZone}
+                            onClose={() => setIsManageZonesMode(false)}
+                         />
+                    )}
+
+                    {/* Right Side Feed (Hidden if Zone Manager is open to save space, or stacked) */}
+                    {!isManageZonesMode && (
+                        <div className="w-96 bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/95 backdrop-blur z-10">
+                                <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-wide">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                    Incident Feed
+                                </h3>
+                                <span className="text-[10px] font-mono text-slate-500 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">
+                                    {filteredReports.length} Active
+                                </span>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                            <IncidentFeed 
+                                    reports={filteredReports} 
+                                    onIncidentSelect={(report) => {
+                                        mapRef.current?.flyTo(report.longitude, report.latitude);
+                                        setSelectedIncident(report);
+                                    }} 
+                                />
+                            </div>
                         </div>
-                        
-                        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                           <IncidentFeed 
-                                reports={filteredReports} 
-                                onIncidentSelect={(report) => {
-                                    mapRef.current?.flyTo(report.longitude, report.latitude);
-                                    setSelectedIncident(report);
-                                }} 
-                            />
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
