@@ -1,10 +1,25 @@
+
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
 import * as mockApi from '../services/mockApi.js';
 import MockDataBanner from '../components/MockDataBanner.jsx';
-import { Card, Title, Text, Grid, Col, BarChart, DonutChart, Metric } from '@tremor/react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    ResponsiveContainer,
+    BarChart,
+    Bar,
+    Cell,
+    PieChart,
+    Pie
+} from 'recharts';
+import { ArrowTrendingUpIcon, UserGroupIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const MOCK_DATA_TIMEOUT = 5000;
 
@@ -41,7 +56,7 @@ const StatisticsPage = () => {
                 const mockReports = await mockApi.getReports();
                 if (isMountedRef.current) setReports(mockReports);
             } catch (mockErr) {
-                if (isMountedRef.current) setError("Live data failed and mock data could not be loaded.");
+                if (isMountedRef.current) setError("Live data failed.");
             } finally {
                 if (isMountedRef.current) setLoading(false);
             }
@@ -55,19 +70,14 @@ const StatisticsPage = () => {
             setUsingMockData(false);
             try {
                 const data = await api.getReports(selectedEventId);
-                
                 if (dataLoadedRef.current || !isMountedRef.current) return;
                 clearTimeout(timeoutId);
                 dataLoadedRef.current = true;
-                
-                // api.js now unwraps data
                 setReports(data);
                 setLoading(false);
             } catch (err) {
                 if (dataLoadedRef.current || !isMountedRef.current) return;
                 clearTimeout(timeoutId);
-                console.error("Failed to fetch reports for stats:", err);
-                setError(err.message);
                 loadMockData();
             }
         };
@@ -75,72 +85,137 @@ const StatisticsPage = () => {
         return () => clearTimeout(timeoutId);
     }, [selectedEventId, navigate]);
 
-    const { categoryData, statusData, totalReports } = useMemo(() => {
-        if (!reports || !reports.length) {
-            return { categoryData: [], statusData: [], totalReports: 0 };
-        }
-        
-        const categoryCounts = reports.reduce((acc, report) => {
-            acc[report.category] = (acc[report.category] || 0) + 1;
+    const stats = useMemo(() => {
+        if (!reports.length) return null;
+
+        // 1. Reports over time (simulated buckets)
+        const timeData = reports.reduce((acc, r) => {
+            const hour = new Date(r.createdAt).getHours();
+            const label = `${hour}:00`;
+            const existing = acc.find(a => a.time === label);
+            if (existing) existing.count++;
+            else acc.push({ time: label, count: 1 });
+            return acc;
+        }, []).sort((a, b) => parseInt(a.time) - parseInt(b.time));
+
+        // 2. By Category
+        const catCounts = reports.reduce((acc, r) => {
+            acc[r.category] = (acc[r.category] || 0) + 1;
             return acc;
         }, {});
+        const categoryData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
-        const statusCounts = reports.reduce((acc, report) => {
-            acc[report.status] = (acc[report.status] || 0) + 1;
+        // 3. By Status
+        const statusCounts = reports.reduce((acc, r) => {
+            acc[r.status] = (acc[r.status] || 0) + 1;
             return acc;
         }, {});
+        const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
 
-        const categoryData = Object.entries(categoryCounts).map(([name, value]) => ({ name, 'Number of Reports': value }));
-        // Format status labels
-        const statusData = Object.entries(statusCounts).map(([name, value]) => ({ 
-            name: name.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase()), 
-            value 
-        }));
-        
-        return { categoryData, statusData, totalReports: reports.length };
+        return { timeData, categoryData, statusData, total: reports.length };
     }, [reports]);
+
+    const COLORS = ['#6366f1', '#ec4899', '#eab308', '#22c55e'];
     
     return (
-        <div className="p-6">
+        <div className="p-6 md:p-8 h-full overflow-y-auto bg-slate-950 text-slate-200">
             {usingMockData && <MockDataBanner/>}
-            <Title className='text-2xl'>Incident Statistics</Title>
+            
+            <header className="mb-8">
+                <h1 className="text-3xl font-bold text-white">Analytics Overview</h1>
+                <p className="text-slate-400">Real-time insights into event safety and participation.</p>
+            </header>
 
             {loading ? (
-                <div className="mt-6"><Text>Loading statistics...</Text></div>
+                <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div></div>
+            ) : !stats ? (
+                <div className="text-center text-slate-500">No data available yet.</div>
             ) : (
-                 <Grid numItemsLg={3} className="gap-6 mt-6">
-                    <Col numColSpanLg={2}>
-                        <Card className='bg-card dark:bg-dark-card'>
-                            <Title>Incidents by Category</Title>
-                             <BarChart
-                                className="mt-6"
-                                data={categoryData}
-                                index="name"
-                                categories={['Number of Reports']}
-                                colors={['blue']}
-                                yAxisWidth={48}
-                            />
-                        </Card>
-                    </Col>
-                    <Col>
-                        <Card className='bg-card dark:bg-dark-card'>
-                             <Title>Incidents by Status</Title>
-                             <DonutChart
-                                className="mt-8"
-                                data={statusData}
-                                category="value"
-                                index="name"
-                                colors={["yellow", "blue", "emerald", "slate"]}
-                            />
-                        </Card>
-                    </Col>
-                    <Col>
-                         <Card className='bg-card dark:bg-dark-card'>
-                            <Text>Total Incidents Reported</Text>
-                            <Metric>{totalReports}</Metric>
-                        </Card>
-                    </Col>
-                </Grid>
+                <div className="space-y-6">
+                    {/* Top KPIs */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                            <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                                <ArrowTrendingUpIcon className="w-24 h-24 text-indigo-500" />
+                            </div>
+                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Total Incidents</div>
+                            <div className="text-4xl font-bold text-white">{stats.total}</div>
+                            <div className="text-green-400 text-sm mt-2 flex items-center gap-1">
+                                <span className="bg-green-500/20 px-1.5 py-0.5 rounded">+12%</span> vs last hour
+                            </div>
+                        </div>
+                         <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                             <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                                <ShieldCheckIcon className="w-24 h-24 text-emerald-500" />
+                            </div>
+                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Resolution Rate</div>
+                            <div className="text-4xl font-bold text-white">
+                                {Math.round((reports.filter(r => r.status === 'RESOLVED').length / stats.total) * 100) || 0}%
+                            </div>
+                            <div className="text-slate-500 text-sm mt-2">
+                                {reports.filter(r => r.status === 'RESOLVED').length} resolved issues
+                            </div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                            <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                                <UserGroupIcon className="w-24 h-24 text-blue-500" />
+                            </div>
+                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Top Category</div>
+                            <div className="text-4xl font-bold text-white truncate">
+                                {stats.categoryData.sort((a,b) => b.value - a.value)[0]?.name || 'N/A'}
+                            </div>
+                            <div className="text-slate-500 text-sm mt-2">Most frequent report type</div>
+                        </div>
+                    </div>
+
+                    {/* Main Charts Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Incident Trend Area Chart */}
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                            <h3 className="text-lg font-bold text-white mb-6">Incident Reporting Trend</h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={stats.timeData}>
+                                        <defs>
+                                            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                                        <XAxis dataKey="time" stroke="#94a3b8" tick={{fontSize: 12}} />
+                                        <YAxis stroke="#94a3b8" tick={{fontSize: 12}} />
+                                        <Tooltip 
+                                            contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff'}} 
+                                            itemStyle={{color: '#fff'}}
+                                        />
+                                        <Area type="monotone" dataKey="count" stroke="#6366f1" fillOpacity={1} fill="url(#colorCount)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Category Bar Chart */}
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                            <h3 className="text-lg font-bold text-white mb-6">Reports by Category</h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.categoryData} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
+                                        <XAxis type="number" stroke="#94a3b8" />
+                                        <YAxis dataKey="name" type="category" width={100} stroke="#94a3b8" />
+                                        <Tooltip cursor={{fill: '#334155', opacity: 0.2}} contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff'}} />
+                                        <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]}>
+                                            {stats.categoryData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

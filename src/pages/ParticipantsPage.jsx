@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
@@ -65,14 +66,12 @@ const ParticipantsPage = () => {
             setError(null);
             setUsingMockData(false);
             try {
-                // Using getEventParticipants instead of mock
                 const response = await api.getEventParticipants(selectedEventId);
                 
                 if (dataLoadedRef.current || !isMountedRef.current) return;
                 clearTimeout(timeoutId);
                 dataLoadedRef.current = true;
 
-                // api.js now handles extracting data from the response object
                 setParticipants(response);
                 setLoading(false);
             } catch (err) {
@@ -87,49 +86,57 @@ const ParticipantsPage = () => {
         return () => clearTimeout(timeoutId);
     }, [selectedEventId, navigate]);
 
-    const statusColor = {
-        'Active': 'emerald',
-        'Idle': 'amber',
-        'Disconnected': 'rose',
-    };
-    
     return (
-        <div className="p-6 h-full flex flex-col">
+        <div className="p-6 h-full flex flex-col bg-slate-950 text-slate-200">
             {usingMockData && <MockDataBanner />}
-            <Title className='text-2xl m-auto'>Event Participants</Title>
-            <Card className="mt-6 flex-grow bg-card dark:bg-dark-card rounded-xl">
+            <Title className='text-2xl mb-6 text-white'>Event Participants</Title>
+            <Card className="flex-grow bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-0">
                     {loading ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <Text>Loading participant data...</Text>
+                    <div className="w-full h-full flex items-center justify-center text-slate-500">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mr-3"></div>
+                        Loading...
                     </div>
                     ) : (
-                    <div className="h-full overflow-y-auto">
+                    <div className="h-full overflow-y-auto custom-scrollbar">
                         <Table>
                             <TableHead>
-                                <TableRow>
-                                    <TableHeaderCell>Name</TableHeaderCell>
-                                    <TableHeaderCell>Email</TableHeaderCell>
-                                    <TableHeaderCell>User ID</TableHeaderCell>
-                                    <TableHeaderCell>Joined At</TableHeaderCell>
-                                    <TableHeaderCell>Status</TableHeaderCell>
+                                <TableRow className="border-b border-slate-800">
+                                    <TableHeaderCell className="text-slate-400">Name</TableHeaderCell>
+                                    <TableHeaderCell className="text-slate-400">Email</TableHeaderCell>
+                                    <TableHeaderCell className="text-slate-400">Phone</TableHeaderCell>
+                                    <TableHeaderCell className="text-slate-400">Joined At</TableHeaderCell>
+                                    <TableHeaderCell className="text-slate-400">Status</TableHeaderCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {participants.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>{item.name}</TableCell>
-                                        <TableCell>{item.email || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            <Text>{item.id}</Text>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Text>{item.joinedAt ? new Date(item.joinedAt).toLocaleString() : 'N/A'}</Text>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge color={statusColor[item.status] || 'slate'}>{item.status || 'Unknown'}</Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {participants.map((item) => {
+                                    // Handle both mock structure (direct) and real structure (nested user)
+                                    const name = item.user?.name || item.name || 'Unknown';
+                                    const email = item.user?.email || item.email || '-';
+                                    const phone = item.user?.phoneNumber || '-';
+                                    const joinedAt = item.joinedAt ? new Date(item.joinedAt).toLocaleString() : '-';
+
+                                    return (
+                                        <TableRow key={item.id || item.userId} className="hover:bg-slate-800/50 transition-colors">
+                                            <TableCell className="text-white font-medium">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs font-bold">
+                                                        {name.charAt(0)}
+                                                    </div>
+                                                    {name}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-slate-400">{email}</TableCell>
+                                            <TableCell className="text-slate-400">{phone}</TableCell>
+                                            <TableCell className="text-slate-400">{joinedAt}</TableCell>
+                                            <TableCell>
+                                                <Badge color={item.isActive !== false ? 'emerald' : 'rose'} className="rounded-md">
+                                                    {item.isActive !== false ? 'Active' : 'Left'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </div>
