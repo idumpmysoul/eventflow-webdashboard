@@ -27,6 +27,9 @@ const MapComponent = forwardRef(({
     // --- Map Initialization ---
     useEffect(() => {
         if (!mapContainer.current || !mapboxToken) return;
+        
+        // Prevent multiple initializations
+        if (map.current) return;
 
         const mapStyle = theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
         const defaultCenter = [106.8456, -6.2088]; // Jakarta
@@ -114,7 +117,7 @@ const MapComponent = forwardRef(({
                 paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-dasharray': [2, 2] }
             });
             
-            // --- Fix: Zone Labels ---
+            // Zone Labels
             map.current.addLayer({
                 id: 'zones-labels',
                 type: 'symbol',
@@ -140,8 +143,6 @@ const MapComponent = forwardRef(({
                     onZoneCreated(feature);
                     // Immediately remove from draw so it doesn't conflict with the 'zones' prop layer
                     draw.current.delete(feature.id); 
-                    // Reset mode to prevent continuous drawing if desired, or keep it
-                    // draw.current.changeMode('simple_select');
                     
                     // Reset cursor
                     if(map.current.getCanvas()) map.current.getCanvas().style.cursor = '';
@@ -150,9 +151,9 @@ const MapComponent = forwardRef(({
             
             map.current.on('draw.modechange', (e) => {
                 if(e.mode === 'draw_polygon') {
-                     map.current.getCanvas().style.cursor = 'crosshair';
+                     if(map.current.getCanvas()) map.current.getCanvas().style.cursor = 'crosshair';
                 } else {
-                     map.current.getCanvas().style.cursor = '';
+                     if(map.current.getCanvas()) map.current.getCanvas().style.cursor = '';
                 }
             });
 
@@ -228,11 +229,11 @@ const MapComponent = forwardRef(({
         if (isManageZonesMode) {
             // Activate draw mode
             draw.current.changeMode('draw_polygon');
-            map.current.getCanvas().style.cursor = 'crosshair';
+            if(map.current.getCanvas()) map.current.getCanvas().style.cursor = 'crosshair';
         } else {
             // Deactivate draw mode
             draw.current.changeMode('simple_select');
-            map.current.getCanvas().style.cursor = '';
+            if(map.current.getCanvas()) map.current.getCanvas().style.cursor = '';
         }
     }, [isManageZonesMode, mapLoaded]);
 

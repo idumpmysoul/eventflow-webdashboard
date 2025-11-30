@@ -202,11 +202,26 @@ const DashboardPage = () => {
                  return [reportObj, ...prevReports];
              });
         });
+        
+        // Listen for Geofence Alerts (Backend implementation pending)
+        socket.on('geofenceEvent', (payload) => {
+             // Add new notification locally for immediate feedback
+             const newNotif = {
+                 id: Date.now().toString(),
+                 title: 'Geofence Alert',
+                 message: `${payload.userName || 'A user'} has ${payload.status === 'EXITED_ZONE' ? 'exited' : 'entered'} a restricted zone.`,
+                 type: 'SECURITY_ALERT',
+                 createdAt: new Date()
+             };
+             setNotifications(prev => [newNotif, ...prev]);
+             // Optional: Add visual indicator on map or toast
+        });
 
         return () => {
             socket.emit('leaveEventRoom', selectedEventId);
             socket.off('locationUpdate');
             socket.off('liveReport');
+            socket.off('geofenceEvent');
             socket.disconnect();
         };
     }, [selectedEventId, usingMockData, loading]);

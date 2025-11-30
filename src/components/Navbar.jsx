@@ -1,7 +1,7 @@
+
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  HomeIcon,
   UsersIcon,
   MapIcon,
   ChartBarIcon,
@@ -19,18 +19,14 @@ const navigation = [
 ];
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, selectEvent } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-        await api.logoutUser();
-    } catch (error) {
-        console.error("Logout API call failed, logging out client-side.", error);
-    } finally {
-        logout();
-        navigate('/login');
-    }
+  const handleExitEvent = () => {
+      // Clear the selected event ID in context
+      selectEvent(null);
+      // Redirect to the event selection page
+      navigate('/events');
   };
 
   // Styles matching the generated dashboard sidebar
@@ -41,7 +37,7 @@ const Navbar = () => {
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20 flex-shrink-0">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-white">
-              <img src="/logo.svg" alt="EventFlow Logo" className="h-10 w-10" /> 
+              <img src="/logo.svg" alt="EventFlow Logo" className="h-10 w-10" />
               <span>EventFlow</span>
           </div>
       </div>
@@ -76,7 +72,7 @@ const Navbar = () => {
               </div>
           </div>
           <button 
-              onClick={handleLogout} 
+              onClick={handleExitEvent} 
               className="w-full flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors px-2 py-1"
           >
               <ArrowRightOnRectangleIcon className="w-4 h-4" /> Exit Event

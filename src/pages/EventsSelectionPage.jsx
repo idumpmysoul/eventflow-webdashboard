@@ -51,7 +51,7 @@ const EventsSelectionPage = () => {
       longitude: null
   });
   const [createdEventCode, setCreatedEventCode] = useState(null);
-  const mapRef = useRef(null); // Ref for map resizing
+  const mapRef = useRef(null); 
   
   const dataLoadedRef = useRef(false);
   const isMountedRef = useRef(true);
@@ -133,8 +133,12 @@ const EventsSelectionPage = () => {
               return;
           }
           setCurrentStep(2);
-          // Timeout to allow modal render before map resize
-          setTimeout(() => mapRef.current?.resize(), 100); 
+          // Wait for DOM update then resize map
+          setTimeout(() => {
+            if(mapRef.current) {
+                mapRef.current.resize();
+            }
+          }, 300); 
       } else if (currentStep === 2) {
           if (!formData.latitude || !formData.longitude) {
               alert("Please pin a location on the map.");
@@ -174,7 +178,7 @@ const EventsSelectionPage = () => {
               await new Promise(resolve => setTimeout(resolve, 1000));
               console.log("Mock Event Created:", payload);
           } else {
-              await api.createEvent(payload); // Assuming api.createEvent is implemented
+              await api.createEvent(payload); 
           }
           setCreatedEventCode(joinCode);
           setCurrentStep(4); // Success Step
@@ -340,7 +344,8 @@ const EventsSelectionPage = () => {
                               <div className="mb-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
                                   Click on the map to pin the exact event location.
                               </div>
-                              <div className="flex-1 min-h-[300px] rounded-xl overflow-hidden border border-slate-700 relative">
+                              {/* Force height to ensure map renders */}
+                              <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800">
                                   <MapComponent 
                                     ref={mapRef}
                                     mapboxToken={VITE_MAPBOX_TOKEN}

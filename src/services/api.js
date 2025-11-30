@@ -162,6 +162,24 @@ const api = {
     }
     return [];
   },
+
+  async updateReportStatus(reportId, status, adminNotes) {
+    const res = await fetch(`${API_BASE}/reports/${reportId}/status`, {
+        method: 'PATCH',
+        headers: headers(true),
+        body: JSON.stringify({ status, adminNotes })
+    });
+    return handleResponse(res);
+  },
+
+  async broadcastReport(reportId, broadcastMessage, severity) {
+      const res = await fetch(`${API_BASE}/reports/${reportId}/broadcast`, {
+          method: 'POST',
+          headers: headers(true),
+          body: JSON.stringify({ broadcastMessage, severity })
+      });
+      return handleResponse(res);
+  }
 };
 
 export default api;
