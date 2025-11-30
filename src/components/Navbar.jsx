@@ -41,7 +41,7 @@ const Navbar = () => {
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20 flex-shrink-0">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-white">
-              <MapIcon className="h-6 w-6 text-indigo-500" /> 
+              <img src="/logo.svg" alt="EventFlow Logo" className="h-10 w-10" /> 
               <span>EventFlow</span>
           </div>
       </div>

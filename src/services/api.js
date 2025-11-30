@@ -86,6 +86,15 @@ const api = {
     return handleResponse(res);
   },
 
+  async createEvent(eventData) {
+      const res = await fetch(`${API_BASE}/events`, {
+          method: 'POST',
+          headers: headers(true),
+          body: JSON.stringify(eventData)
+      });
+      return handleResponse(res);
+  },
+
   // ============ VIRTUAL AREAS (ZONES) ============
   async getVirtualAreas(eventId) {
     // Match Backend: GET /virtual-area/:eventId/get-all

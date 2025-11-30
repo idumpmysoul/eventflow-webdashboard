@@ -45,10 +45,11 @@ const LoginPage = () => {
             <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-2xl border border-slate-800 w-full max-w-md shadow-2xl z-10">
                 <div className="flex justify-center mb-8">
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                            <MapIcon className="h-6 w-6 text-white" />
+                        <div className="p-2 w-fit h-10 bg-transparent rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                            <img src="/logo.svg" alt="EventFlow Logo" className="h-10 w-10" />
+                            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">EventFlow</h1>
                         </div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">EventFlow</h1>
+                        
                     </div>
                 </div>
 
