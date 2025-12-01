@@ -185,6 +185,25 @@ const DashboardPage = () => {
         };
     }, [selectedEventId, usingMockData, loading, notify]);
 
+    const toggleManageZones = () => {
+        const nextState = !isManageZonesMode;
+        setIsManageZonesMode(nextState);
+        if (nextState) {
+            setIsManageSpotsMode(false);
+            setIsAddingSpotMode(false);
+        }
+    };
+
+    const toggleManageSpots = () => {
+        const nextState = !isManageSpotsMode;
+        setIsManageSpotsMode(nextState);
+        if (nextState) {
+            setIsManageZonesMode(false);
+            setIsAddingSpotMode(false);
+        }
+    };
+    
+
     // --- Zone Management Handlers ---
     const handleZoneCreated = (feature) => {
         setTempZoneFeature(feature);
@@ -233,8 +252,10 @@ const DashboardPage = () => {
 
     // --- Spot Management Handlers ---
     const handleAddSpotRequest = () => {
-        setIsAddingSpotMode(true);
-        notify('Click on the map to place a new spot.', 'info');
+        setIsAddingSpotMode(prev => !prev);
+        if (!isAddingSpotMode) {
+            notify('Click on the map to place a new spot.', 'info');
+        }
     };
 
     const handleLocationSelectForSpot = (location) => {
@@ -318,6 +339,27 @@ const DashboardPage = () => {
             
             {isBroadcastModalOpen && <BroadcastModal zones={zones} onClose={() => setIsBroadcastModalOpen(false)} />}
             
+            {/* Add Zone Modal */}
+            {isZoneModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="max-w-sm w-full bg-slate-900 border border-slate-800 shadow-2xl rounded-xl p-6 animate-fadeIn">
+                        <h3 className="text-lg font-bold text-white mb-4">Name Your Zone</h3>
+                        <div className="space-y-4">
+                            <input value={newZoneName} onChange={(e) => setNewZoneName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2" placeholder="Zone Name" />
+                            <div className="flex gap-3">
+                                {ZONE_COLORS.map(c => (
+                                    <button key={c.value} onClick={() => setNewZoneColor(c.value)} className={`w-8 h-8 rounded-full ${newZoneColor === c.value ? 'ring-2 ring-white' : ''}`} style={{backgroundColor: c.value}} />
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={closeZoneModal} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white rounded-lg">Cancel</button>
+                            <button onClick={saveZone} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg">Save Zone</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Spot Creation Modal */}
             {isSpotModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -352,10 +394,10 @@ const DashboardPage = () => {
                      <button onClick={() => setIsBroadcastModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20">
                         <MegaphoneIcon className="w-4 h-4"/> Broadcast
                     </button>
-                    <button onClick={() => setIsManageSpotsMode(!isManageSpotsMode)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isManageSpotsMode ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+                    <button onClick={toggleManageSpots} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isManageSpotsMode ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
                         {isManageSpotsMode ? <CheckIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />} Manage Spots
                     </button>
-                    <button onClick={() => setIsManageZonesMode(!isManageZonesMode)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isManageZonesMode ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+                    <button onClick={toggleManageZones} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isManageZonesMode ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
                         {isManageZonesMode ? <CheckIcon className="w-4 h-4" /> : <PencilIcon className="w-4 h-4" />} Manage Zones
                     </button>
                     <div className="h-6 w-px bg-slate-800 mx-1"></div>
@@ -394,7 +436,7 @@ const DashboardPage = () => {
                     </div>
 
                     {isManageZonesMode && <ZoneSidebar zones={zones} onDelete={handleDeleteZone} onUpdate={handleUpdateZone} onClose={() => setIsManageZonesMode(false)} />}
-                    {isManageSpotsMode && <SpotSidebar spots={spots} onDelete={handleDeleteSpot} onUpdate={handleUpdateSpot} onClose={() => setIsManageSpotsMode(false)} onAddRequest={handleAddSpotRequest} />}
+                    {isManageSpotsMode && <SpotSidebar spots={spots} onDelete={handleDeleteSpot} onUpdate={handleUpdateSpot} onClose={() => setIsManageSpotsMode(false)} onAddRequest={handleAddSpotRequest} isAddingSpot={isAddingSpotMode} />}
 
                     {!isManageZonesMode && !isManageSpotsMode && (
                         <div className="w-96 bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,15 +17,6 @@ import {
 
 const MOCK_DATA_TIMEOUT = 5000;
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-
-const generateJoinCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-};
 
 const EventsSelectionPage = () => {
   const [events, setEvents] = useState([]);
@@ -55,6 +45,13 @@ const EventsSelectionPage = () => {
   
   const dataLoadedRef = useRef(false);
   const isMountedRef = useRef(true);
+
+  // Check for Mapbox token on mount
+  useEffect(() => {
+    if (!VITE_MAPBOX_TOKEN) {
+      console.error('VITE_MAPBOX_TOKEN is not defined! Please check your .env file.');
+    }
+  }, []);
 
   // --- Init & Fetch Events ---
   useEffect(() => {
@@ -101,6 +98,16 @@ const EventsSelectionPage = () => {
     return () => clearTimeout(timeoutId);
   }, []);
 
+  // Resize map when entering step 2
+  useEffect(() => {
+    if (currentStep === 2 && mapRef.current) {
+      const timer = setTimeout(() => {
+        mapRef.current?.resize();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep]);
+
   const handleSelectEvent = (eventId) => {
     selectEvent(eventId);
     navigate('/');
@@ -133,12 +140,6 @@ const EventsSelectionPage = () => {
               return;
           }
           setCurrentStep(2);
-          // Wait for DOM update then resize map
-          setTimeout(() => {
-            if(mapRef.current) {
-                mapRef.current.resize();
-            }
-          }, 300); 
       } else if (currentStep === 2) {
           if (!formData.latitude || !formData.longitude) {
               alert("Please pin a location on the map.");
@@ -159,7 +160,6 @@ const EventsSelectionPage = () => {
           return;
       }
 
-      const joinCode = generateJoinCode();
       const payload = {
           name: formData.name,
           description: formData.description,
@@ -168,20 +168,13 @@ const EventsSelectionPage = () => {
           locationName: formData.locationName,
           latitude: parseFloat(formData.latitude),
           longitude: parseFloat(formData.longitude),
-          joinCode: joinCode
       };
 
       try {
           setLoading(true);
-          // If using mock, simulate success
-          if (usingMockData) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              console.log("Mock Event Created:", payload);
-          } else {
-              await api.createEvent(payload); 
-          }
-          setCreatedEventCode(joinCode);
-          setCurrentStep(4); // Success Step
+          const createdEvent = await api.createEvent(payload); 
+          setCreatedEventCode(createdEvent.joinCode);
+          setCurrentStep(4);
           setLoading(false);
       } catch (err) {
           console.error("Failed to create event:", err);
@@ -197,7 +190,6 @@ const EventsSelectionPage = () => {
           name: '', description: '', startDate: '', startTime: '', endDate: '', endTime: '', locationName: '', latitude: null, longitude: null
       });
       setCreatedEventCode(null);
-      // Refresh list
       if (!usingMockData) window.location.reload(); 
   };
 
@@ -344,15 +336,23 @@ const EventsSelectionPage = () => {
                               <div className="mb-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
                                   Click on the map to pin the exact event location.
                               </div>
-                              {/* Force height to ensure map renders */}
                               <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800">
-                                  <MapComponent 
-                                    ref={mapRef}
-                                    mapboxToken={VITE_MAPBOX_TOKEN}
-                                    onLocationSelect={handleLocationSelect}
-                                    initialSelection={formData.latitude ? { latitude: formData.latitude, longitude: formData.longitude } : null}
-                                    theme="dark"
-                                  />
+                                  {VITE_MAPBOX_TOKEN ? (
+                                      <MapComponent 
+                                        ref={mapRef}
+                                        mapboxToken={VITE_MAPBOX_TOKEN}
+                                        onLocationSelect={handleLocationSelect}
+                                        initialSelection={formData.latitude ? { latitude: formData.latitude, longitude: formData.longitude } : null}
+                                        theme="dark"
+                                      />
+                                  ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-red-400 p-4 text-center">
+                                          <div>
+                                              <p className="font-bold mb-2">Mapbox Token Missing</p>
+                                              <p className="text-sm">Please add VITE_MAPBOX_TOKEN to your .env file</p>
+                                          </div>
+                                      </div>
+                                  )}
                               </div>
                               {formData.latitude && (
                                   <p className="mt-2 text-sm text-green-400 flex items-center gap-2">

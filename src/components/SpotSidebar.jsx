@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     TrashIcon, 
     MapPinIcon, 
@@ -11,7 +11,7 @@ import { SpotType } from '../types';
 
 const SPOT_TYPES = Object.keys(SpotType);
 
-const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest }) => {
+const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest, isAddingSpot }) => {
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({ name: '', description: '', type: 'OTHER' });
 
@@ -30,7 +30,7 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest }) => {
             cancelEdit();
         }
     };
-
+    
     return (
         <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-xl animate-slideInRight z-30">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
@@ -38,20 +38,23 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest }) => {
                     <MapPinIcon className="w-5 h-5 text-green-500" />
                     Important Spots
                 </h3>
-                <button onClick={onClose} className="text-slate-400 hover:text-white">
-                    <XMarkIcon className="w-5 h-5" />
-                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-lg text-xs text-green-200 mb-4">
-                    <p className="font-bold mb-1">How to add:</p>
-                    Click the button below and then click anywhere on the map to place a new spot.
-                </div>
                 
-                <button onClick={onAddRequest} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg text-sm font-bold transition-colors">
-                    <PlusIcon className="w-4 h-4" /> Add New Spot
+                <button 
+                    onClick={onAddRequest}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-sm font-bold transition-colors ${
+                        isAddingSpot 
+                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/50' 
+                        : 'bg-green-500/10 hover:bg-green-500/20 text-green-400 border-green-500/50'
+                    }`}
+                >
+                    {isAddingSpot ? <XMarkIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
+                    {isAddingSpot ? 'Cancel Adding' : 'Add New Spot'}
                 </button>
+                
+                <div className="border-t border-slate-800 my-4" />
 
                 {spots.length === 0 ? (
                     <div className="text-center text-slate-500 py-8">
@@ -74,13 +77,13 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest }) => {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm font-medium text-slate-200 truncate max-w-[120px]" title={spot.name}>
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <span className="text-sm font-medium text-slate-200 truncate" title={spot.name}>
                                             {spot.name}
                                         </span>
-                                        <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-400">{spot.type}</span>
+                                        <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-400 flex-shrink-0">{spot.type}</span>
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
                                         <button onClick={() => startEdit(spot)} className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded transition-colors" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button>
                                         <button onClick={() => onDelete(spot.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded transition-colors" title="Delete"><TrashIcon className="w-4 h-4" /></button>
                                     </div>
@@ -89,6 +92,9 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest }) => {
                         </div>
                     ))
                 )}
+            </div>
+            <div className="p-4 border-t border-slate-800">
+                <button onClick={onClose} className="w-full py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg">Close Manager</button>
             </div>
         </div>
     );
