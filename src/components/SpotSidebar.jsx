@@ -13,11 +13,16 @@ const SPOT_TYPES = Object.keys(SpotType);
 
 const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest, isAddingSpot }) => {
     const [editingId, setEditingId] = useState(null);
-    const [editForm, setEditForm] = useState({ name: '', description: '', type: 'OTHER' });
+    const [editForm, setEditForm] = useState({ name: '', description: '', type: 'OTHER', customType: '' });
 
     const startEdit = (spot) => {
         setEditingId(spot.id);
-        setEditForm({ name: spot.name, description: spot.description || '', type: spot.type });
+        setEditForm({
+            name: spot.name,
+            description: spot.description || '',
+            type: spot.type,
+            customType: spot.customType || ''
+        });
     };
 
     const cancelEdit = () => {
@@ -70,6 +75,15 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest, isAddin
                                     <select value={editForm.type} onChange={(e) => setEditForm({...editForm, type: e.target.value})} className="w-full bg-slate-950 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
                                         {SPOT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
+                                    {editForm.type === 'OTHER' && (
+                                        <input
+                                            type="text"
+                                            value={editForm.customType}
+                                            onChange={e => setEditForm({...editForm, customType: e.target.value})}
+                                            className="w-full bg-slate-950 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                                            placeholder="Custom type (e.g. Command Post)"
+                                        />
+                                    )}
                                     <div className="flex justify-end gap-2 mt-2">
                                         <button onClick={cancelEdit} className="p-1 text-slate-400 hover:text-white"><XMarkIcon className="w-4 h-4" /></button>
                                         <button onClick={saveEdit} className="p-1 text-green-400 hover:text-green-300"><CheckIcon className="w-4 h-4" /></button>

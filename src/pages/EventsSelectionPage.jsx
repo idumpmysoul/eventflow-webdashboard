@@ -125,13 +125,20 @@ const EventsSelectionPage = () => {
       setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleLocationSelect = (location) => {
-      setFormData(prev => ({
-          ...prev,
-          latitude: location.latitude,
-          longitude: location.longitude
-      }));
-  };
+    const handleLocationSelect = (location) => {
+            if (
+                typeof location.latitude === 'number' &&
+                typeof location.longitude === 'number' &&
+                !isNaN(location.latitude) &&
+                !isNaN(location.longitude)
+            ) {
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                }));
+            }
+    };
 
   const nextStep = () => {
       if (currentStep === 1) {
@@ -159,17 +166,25 @@ const EventsSelectionPage = () => {
           alert("End time must be after start time.");
           return;
       }
-
+      // Validate location
+      if (
+        typeof formData.latitude !== 'number' ||
+        typeof formData.longitude !== 'number' ||
+        isNaN(formData.latitude) ||
+        isNaN(formData.longitude)
+      ) {
+        alert('Please select a valid location on the map.');
+        return;
+      }
       const payload = {
           name: formData.name,
           description: formData.description,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           locationName: formData.locationName,
-          latitude: parseFloat(formData.latitude),
-          longitude: parseFloat(formData.longitude),
+          latitude: formData.latitude,
+          longitude: formData.longitude,
       };
-
       try {
           setLoading(true);
           const createdEvent = await api.createEvent(payload); 
@@ -332,34 +347,39 @@ const EventsSelectionPage = () => {
                       )}
 
                       {currentStep === 2 && (
-                          <div className="h-full flex flex-col">
-                              <div className="mb-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
-                                  Click on the map to pin the exact event location.
-                              </div>
-                              <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800">
-                                  {VITE_MAPBOX_TOKEN ? (
-                                      <MapComponent 
-                                        ref={mapRef}
-                                        mapboxToken={VITE_MAPBOX_TOKEN}
-                                        onLocationSelect={handleLocationSelect}
-                                        initialSelection={formData.latitude ? { latitude: formData.latitude, longitude: formData.longitude } : null}
-                                        theme="dark"
-                                      />
-                                  ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-red-400 p-4 text-center">
-                                          <div>
-                                              <p className="font-bold mb-2">Mapbox Token Missing</p>
-                                              <p className="text-sm">Please add VITE_MAPBOX_TOKEN to your .env file</p>
-                                          </div>
-                                      </div>
-                                  )}
-                              </div>
-                              {formData.latitude && (
-                                  <p className="mt-2 text-sm text-green-400 flex items-center gap-2">
-                                      <CheckCircleIcon className="w-4 h-4" /> Location Selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
-                                  </p>
-                              )}
-                          </div>
+                                                    <div className="h-full flex flex-col">
+                                                            <div className="mb-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
+                                                                    Click on the map to pin the exact event location.
+                                                            </div>
+                                                            <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800">
+                                                                {VITE_MAPBOX_TOKEN ? (
+                                                                    <MapComponent
+                                                                        ref={mapRef}
+                                                                        mapboxToken={VITE_MAPBOX_TOKEN}
+                                                                        onLocationSelect={handleLocationSelect}
+                                                                        initialSelection={
+                                                                            typeof formData.latitude === 'number' && typeof formData.longitude === 'number'
+                                                                                ? { latitude: formData.latitude, longitude: formData.longitude }
+                                                                                : null
+                                                                        }
+                                                                        theme="dark"
+                                                                        isAddingSpotMode={currentStep === 2}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-red-400 p-4 text-center">
+                                                                        <div>
+                                                                            <p className="font-bold mb-2">Mapbox Token Missing</p>
+                                                                            <p className="text-sm">Please add VITE_MAPBOX_TOKEN to your .env file</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {formData.latitude && (
+                                                                <p className="mt-2 text-sm text-green-400 flex items-center gap-2">
+                                                                    <CheckCircleIcon className="w-4 h-4" /> Location Selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                                                                </p>
+                                                            )}
+                                                    </div>
                       )}
 
                       {currentStep === 3 && (

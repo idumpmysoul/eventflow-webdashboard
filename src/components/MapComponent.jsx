@@ -43,63 +43,67 @@ const MapComponent = forwardRef(({
     const spotMarkers = useRef({});
     const [mapLoaded, setMapLoaded] = useState(false);
 
-    useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || map.current) return;
-    
-    const mapStyle = 'mapbox://styles/mapbox/streets-v12';
-    const defaultCenter = [106.8456, -6.2088];
-    const initialCenter = center || (initialSelection ? [initialSelection.longitude, initialSelection.latitude] : defaultCenter);
-
-    try {
-        mapboxgl.accessToken = mapboxToken;
-        map.current = new mapboxgl.Map({ 
-            container: mapContainer.current, 
-            style: mapStyle, 
-            center: initialCenter, 
-            zoom: 14, 
-            pitch: 45 
-        });
-        
-        map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-
-        draw.current = new MapboxDraw({ displayControlsDefault: false, controls: {} });
-        map.current.addControl(draw.current);
-
-        map.current.on('load', () => {
-            if (!map.current) return;
-            
-            // Add a small delay before resizing
-            setTimeout(() => {
+        useEffect(() => {
+            if (!mapContainer.current || !mapboxToken || map.current) return;
+            const mapStyle = 'mapbox://styles/mapbox/streets-v12';
+            const defaultCenter = [106.8456, -6.2088];
+            let initialCenter = defaultCenter;
+            if (
+                center &&
+                typeof center[0] === 'number' &&
+                typeof center[1] === 'number'
+            ) {
+                initialCenter = center;
+            } else if (
+                initialSelection &&
+                typeof initialSelection.longitude === 'number' &&
+                typeof initialSelection.latitude === 'number'
+            ) {
+                initialCenter = [initialSelection.longitude, initialSelection.latitude];
+            }
+            try {
+                mapboxgl.accessToken = mapboxToken;
+                map.current = new mapboxgl.Map({ 
+                    container: mapContainer.current, 
+                    style: mapStyle, 
+                    center: initialCenter, 
+                    zoom: 14, 
+                    pitch: 45 
+                });
+                map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+                draw.current = new MapboxDraw({ displayControlsDefault: false, controls: {} });
+                map.current.addControl(draw.current);
+                map.current.on('load', () => {
+                    if (!map.current) return;
+                    setTimeout(() => {
+                        if (map.current) {
+                            map.current.resize();
+                            setMapLoaded(true);
+                        }
+                    }, 100);
+                    if (
+                        onLocationSelect &&
+                        initialSelection &&
+                        typeof initialSelection.longitude === 'number' &&
+                        typeof initialSelection.latitude === 'number'
+                    ) {
+                        addSelectionMarker(initialSelection.longitude, initialSelection.latitude);
+                    }
+                    map.current.addSource('zones-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+                });
+                map.current.on('error', (e) => {
+                    console.error('Mapbox error:', e);
+                });
+            } catch (error) {
+                console.error('Failed to initialize map:', error);
+            }
+            return () => { 
                 if (map.current) {
-                    map.current.resize();
-                    setMapLoaded(true);
+                    map.current.remove(); 
+                    map.current = null; 
                 }
-            }, 100);
-            
-            if (onLocationSelect && initialSelection) addSelectionMarker(initialSelection.longitude, initialSelection.latitude);
-
-            // Rest of your load handler code...
-            map.current.addSource('zones-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-            
-            // ... rest of the code
-        });
-
-        // Error handler
-        map.current.on('error', (e) => {
-            console.error('Mapbox error:', e);
-        });
-
-    } catch (error) {
-        console.error('Failed to initialize map:', error);
-    }
-
-    return () => { 
-        if (map.current) {
-            map.current.remove(); 
-            map.current = null; 
-        }
-    }
-}, [mapboxToken]);
+            }
+        }, [mapboxToken, center, initialSelection]);
 
     useImperativeHandle(ref, () => ({
         flyTo(lng, lat) { /* ... implementation ... */ },
@@ -190,11 +194,77 @@ const MapComponent = forwardRef(({
 
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        if (participantDisplayMode === 'heatmap') { /* ... heatmap logic ... */ return; }
-        if (map.current.getLayer('heatmap-layer')) { /* ... cleanup heatmap ... */ }
+        const safeParticipantLocations = Array.isArray(participantLocations) ? participantLocations : [];
 
-        const activeIds = new Set(participantLocations.map(p => p.userId));
-        participantLocations.forEach(p => {
+        if (participantDisplayMode === 'heatmap') {
+            // Remove previous heatmap layer/source if exists
+            if (map.current.getLayer('heatmap-layer')) {
+                map.current.removeLayer('heatmap-layer');
+            }
+            if (map.current.getSource('heatmap-data')) {
+                map.current.removeSource('heatmap-data');
+            }
+            // Add heatmap source
+            map.current.addSource('heatmap-data', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: safeParticipantLocations.map(p => ({
+                        type: 'Feature',
+                        properties: {},
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [p.longitude, p.latitude]
+                        }
+                    }))
+                }
+            });
+            // Add heatmap layer
+            map.current.addLayer({
+                id: 'heatmap-layer',
+                type: 'heatmap',
+                source: 'heatmap-data',
+                maxzoom: 18,
+                paint: {
+                    'heatmap-weight': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'point_count'],
+                        0, 0,
+                        6, 1
+                    ],
+                    'heatmap-intensity': [
+                        'interpolate', ['linear'], ['zoom'], 0, 1, 18, 3
+                    ],
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0, 'rgba(33,102,172,0)',
+                        0.2, 'rgb(103,169,207)',
+                        0.4, 'rgb(209,229,240)',
+                        0.6, 'rgb(253,219,199)',
+                        0.8, 'rgb(239,138,98)',
+                        1, 'rgb(178,24,43)'
+                    ],
+                    'heatmap-radius': [
+                        'interpolate', ['linear'], ['zoom'], 0, 10, 18, 40
+                    ],
+                    'heatmap-opacity': [
+                        'interpolate', ['linear'], ['zoom'], 7, 1, 18, 0.6
+                    ]
+                }
+            });
+            return;
+        }
+        // Remove heatmap if switching back to dots
+        if (map.current.getLayer('heatmap-layer')) {
+            map.current.removeLayer('heatmap-layer');
+        }
+        if (map.current.getSource('heatmap-data')) {
+            map.current.removeSource('heatmap-data');
+        }
+        // Dots logic
+        const activeIds = new Set(safeParticipantLocations.map(p => p.userId));
+        safeParticipantLocations.forEach(p => {
             if (participantMarkers.current[p.userId]) {
                 participantMarkers.current[p.userId].setLngLat([p.longitude, p.latitude]);
             } else {
@@ -207,7 +277,6 @@ const MapComponent = forwardRef(({
                 participantMarkers.current[p.userId] = marker;
             }
         });
-
         Object.keys(participantMarkers.current).forEach(id => {
             if (!activeIds.has(id)) {
                 participantMarkers.current[id].remove();
@@ -216,7 +285,13 @@ const MapComponent = forwardRef(({
         });
     }, [participantLocations, participantDisplayMode, mapLoaded]);
 
-    return <div ref={mapContainer} className="w-full h-full" />;
+        return (
+            <div
+                ref={mapContainer}
+                className="w-full h-full min-h-[400px] bg-slate-800 rounded-xl border border-slate-700"
+                style={{ minHeight: 400, background: '#232946', borderRadius: '0.75rem', border: '1px solid #334155' }}
+            />
+        );
 });
 
 export default MapComponent;

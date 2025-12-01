@@ -12,8 +12,10 @@ export const ReportStatus = {
 };
 
 export const SpotType = {
-    ENTRY: 'ENTRY',
-    EXIT: 'EXIT',
-    CHECKPOINT: 'CHECKPOINT',
-    OTHER: 'OTHER'
+  HOSPITAL: 'HOSPITAL',
+  ENTRY_GATE: 'ENTRY_GATE',
+  EXIT_GATE: 'EXIT_GATE',
+  SHELTER: 'SHELTER',
+  INFO_CENTER: 'INFO_CENTER',
+  OTHER: 'OTHER'
 };
