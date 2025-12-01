@@ -3,13 +3,14 @@ import { XMarkIcon, MegaphoneIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifier } from '../contexts/NotificationContext';
+import { ReportCategory } from '../types';
 
 const BroadcastModal = ({ zones, onClose }) => {
     const { selectedEventId } = useAuth();
     const { notify } = useNotifier();
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
-    const [target, setTarget] = useState('all'); // 'all' or a zoneId
+    const [category, setCategory] = useState(ReportCategory.OTHER);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async () => {
@@ -24,7 +25,7 @@ const BroadcastModal = ({ zones, onClose }) => {
                 eventId: selectedEventId,
                 title,
                 message,
-                category: 'GENERAL',
+                category,
                 type: 'BROADCAST',
             });
             notify('Broadcast sent successfully!', 'info');
@@ -59,16 +60,12 @@ const BroadcastModal = ({ zones, onClose }) => {
                         <label className="block text-sm font-medium text-slate-400 mb-1">Message</label>
                         <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows="4" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Enter your message to all participants..."></textarea>
                     </div>
-                    {/* Backend does not currently support zone targeting, so this is disabled for now. */}
-                    {/* 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Target Audience</label>
-                        <select value={target} onChange={e => setTarget(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-indigo-500 outline-none">
-                            <option value="all">All Participants</option>
-                            {zones.map(z => <option key={z.id} value={z.id}>Participants in {z.name}</option>)}
+                     <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-1">Category</label>
+                        <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-indigo-500 outline-none">
+                            {Object.values(ReportCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
-                    </div> 
-                    */}
+                    </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-800 flex justify-end gap-3">

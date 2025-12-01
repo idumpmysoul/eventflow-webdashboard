@@ -6,7 +6,8 @@ import {
   MapIcon,
   ChartBarIcon,
   ArrowRightOnRectangleIcon,
-  MapPinIcon
+  MapPinIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -16,6 +17,7 @@ const navigation = [
   { name: 'Participants', href: '/participants', icon: UsersIcon },
   { name: 'Heatmap', href: '/heatmap', icon: MapPinIcon },
   { name: 'Analytics', href: '/statistics', icon: ChartBarIcon },
+  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 const Navbar = () => {

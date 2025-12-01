@@ -11,6 +11,7 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import ParticipantsPage from './pages/ParticipantsPage.jsx';
 import HeatmapPage from './pages/HeatmapPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 
 function AppRoutes() {
   const { isAuthenticated, loading, selectedEventId } = useAuth();
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="participants" element={<ParticipantsPage />} />
         <Route path="heatmap" element={<HeatmapPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       {/* Redirect unknown routes */}

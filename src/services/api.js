@@ -54,20 +54,6 @@ const api = {
     return handleResponse(res);
   },
 
-  async getUserById(userId) {
-    try {
-        const res = await fetch(`${API_BASE}/users/${userId}`, {
-            method: 'GET',
-            headers: headers(true),
-        });
-        const response = await handleResponse(res);
-        return extractData(response);
-    } catch (err) {
-        console.error('getUserById error:', err);
-        throw err;
-    }
-},
-
   async registerUser(userData) {
     const res = await fetch(`${API_BASE}/auths/register`, {
       method: 'POST',
@@ -107,6 +93,23 @@ const api = {
           body: JSON.stringify(eventData)
       });
       return handleResponse(res);
+  },
+
+  async updateEvent(eventId, eventData) {
+    const res = await fetch(`${API_BASE}/events/${eventId}`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify(eventData),
+    });
+    return handleResponse(res);
+  },
+
+  async finishEvent(eventId) {
+    const res = await fetch(`${API_BASE}/events/${eventId}/finish`, {
+      method: 'PATCH',
+      headers: headers(true),
+    });
+    return handleResponse(res);
   },
 
   // ============ VIRTUAL AREAS (ZONES) ============
