@@ -6,6 +6,7 @@ import { NotificationProvider } from './contexts/NotificationContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import RegisterOrganizerPage from './pages/RegisterOrganizerPage.jsx';
 import EventsSelectionPage from './pages/EventsSelectionPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ParticipantsPage from './pages/ParticipantsPage.jsx';
@@ -31,6 +32,7 @@ function AppRoutes() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register-organizer" element={<RegisterOrganizerPage />} />
 
       {/* Protected Routes */}
       <Route

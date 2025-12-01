@@ -63,23 +63,38 @@ const Navbar = () => {
           </nav>
       </div>
 
-      <div className="p-4 border-t border-slate-800 bg-slate-900">
-          <div className="flex items-center gap-3 mb-4 px-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <div className="overflow-hidden">
-                  <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
-                  <p className="text-xs text-slate-500 truncate">{user?.role || 'Organizer'}</p>
-              </div>
-          </div>
-          <button 
-              onClick={handleExitEvent} 
-              className="w-full flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors px-2 py-1"
-          >
-              <ArrowRightOnRectangleIcon className="w-4 h-4" /> Exit Event
-          </button>
-      </div>
+            <div className="p-4 border-t border-slate-800 bg-slate-900">
+                    {user ? (
+                        <>
+                            <div className="flex items-center gap-3 mb-4 px-2">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                                            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                            <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
+                                            <p className="text-xs text-slate-500 truncate">{user?.role || 'Organizer'}</p>
+                                    </div>
+                            </div>
+                            <button 
+                                    onClick={handleExitEvent} 
+                                    className="w-full flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors px-2 py-1"
+                            >
+                                    <ArrowRightOnRectangleIcon className="w-4 h-4" /> Exit Event
+                            </button>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-slate-400 text-sm">Not registered?</span>
+                            <button
+                                type="button"
+                                className="text-indigo-400 hover:text-indigo-300 font-semibold underline text-sm"
+                                onClick={() => navigate('/register-organizer')}
+                            >
+                                Register as Organizer
+                            </button>
+                        </div>
+                    )}
+            </div>
     </aside>
   );
 };

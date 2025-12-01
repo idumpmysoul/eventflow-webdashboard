@@ -49,7 +49,6 @@ const LoginPage = () => {
                             <img src="/logo.svg" alt="EventFlow Logo" className="h-10 w-10" />
                             <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">EventFlow</h1>
                         </div>
-                        
                     </div>
                 </div>
 
@@ -92,8 +91,20 @@ const LoginPage = () => {
                         {loading ? 'Authenticating...' : 'Access Dashboard'}
                     </button>
                 </form>
+
+                {/* Register as Organizer Link */}
+                <div className="mt-6 text-center">
+                    <span className="text-slate-400 text-sm">Don't have an account?</span>
+                    <button
+                        type="button"
+                        className="ml-2 text-indigo-400 hover:text-indigo-300 font-semibold underline text-sm"
+                        onClick={() => navigate('/register-organizer')}
+                    >
+                        Register as Organizer
+                    </button>
+                </div>
+                <ThemeToggleButton />
             </div>
-            <ThemeToggleButton />
         </div>
     );
 };

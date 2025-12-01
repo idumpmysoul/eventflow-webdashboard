@@ -469,7 +469,7 @@ const EventsSelectionPage = () => {
                   </div>
               </div>
           </div>
-      )}
+      )}    
 
       <ThemeToggleButton />
     </div>

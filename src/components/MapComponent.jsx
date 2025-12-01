@@ -152,7 +152,24 @@ const MapComponent = forwardRef(({
         if (!map.current || !mapLoaded) return;
         draw.current.changeMode(isManageZonesMode ? 'draw_polygon' : 'simple_select');
         if(map.current.getCanvas()) map.current.getCanvas().style.cursor = isManageZonesMode ? 'crosshair' : '';
-    }, [isManageZonesMode, mapLoaded]);
+
+        // Listen for polygon creation only in manage zones mode
+        const handleDrawCreate = (e) => {
+            if (!isManageZonesMode || !e.features || !e.features.length) return;
+            const feature = e.features[0];
+            if (feature.geometry.type === 'Polygon' && typeof onZoneCreated === 'function') {
+                onZoneCreated(feature);
+            }
+        };
+        if (isManageZonesMode) {
+            map.current.on('draw.create', handleDrawCreate);
+        }
+        return () => {
+            if (map.current) {
+                map.current.off('draw.create', handleDrawCreate);
+            }
+        };
+    }, [isManageZonesMode, mapLoaded, onZoneCreated]);
 
     useEffect(() => {
         if (!map.current || !mapLoaded || !zones) return;

@@ -44,6 +44,15 @@ const headers = (includeAuth = true) => {
 };
 
 const api = {
+    // ============ ORGANIZER REGISTRATION ============
+    async registerAsOrganizer({ name, email, password, phoneNumber }) {
+      const res = await fetch(`${API_BASE}/auths/register-as-organizer`, {
+        method: 'POST',
+        headers: headers(false),
+        body: JSON.stringify({ name, email, password, phoneNumber }),
+      });
+      return handleResponse(res);
+    },
   // ============ AUTHENTICATION ============
   async loginUser(email, password) {
     const res = await fetch(`${API_BASE}/auths/login`, {

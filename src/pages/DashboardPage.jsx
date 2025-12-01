@@ -206,6 +206,11 @@ const DashboardPage = () => {
 
     // --- Zone Management Handlers ---
     const handleZoneCreated = (feature) => {
+        // Validate that the drawn feature is a GeoJSON Polygon
+        if (!feature || !feature.geometry || feature.geometry.type !== 'Polygon' || !Array.isArray(feature.geometry.coordinates)) {
+            notify('Invalid zone shape. Please draw a polygon area.', 'alert');
+            return;
+        }
         setTempZoneFeature(feature);
         setNewZoneName(`Zone ${zones.length + 1}`);
         setNewZoneColor(ZONE_COLORS[0].value);
@@ -213,7 +218,10 @@ const DashboardPage = () => {
     };
 
     const saveZone = async () => {
-        if (!tempZoneFeature) return;
+        if (!tempZoneFeature || !tempZoneFeature.geometry || tempZoneFeature.geometry.type !== 'Polygon' || !Array.isArray(tempZoneFeature.geometry.coordinates)) {
+            notify('Invalid zone geometry. Please draw a valid polygon.', 'alert');
+            return;
+        }
         const areaData = { name: newZoneName, color: newZoneColor, area: tempZoneFeature.geometry };
         try {
             const savedZone = await api.createVirtualArea(selectedEventId, areaData);
