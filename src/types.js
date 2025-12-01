@@ -11,3 +11,9 @@ export const ReportStatus = {
   RESOLVED: 'RESOLVED'
 };
 
+export const SpotType = {
+    ENTRY: 'ENTRY',
+    EXIT: 'EXIT',
+    CHECKPOINT: 'CHECKPOINT',
+    OTHER: 'OTHER'
+};

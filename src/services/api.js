@@ -54,6 +54,20 @@ const api = {
     return handleResponse(res);
   },
 
+  async getUserById(userId) {
+    try {
+        const res = await fetch(`${API_BASE}/users/${userId}`, {
+            method: 'GET',
+            headers: headers(true),
+        });
+        const response = await handleResponse(res);
+        return extractData(response);
+    } catch (err) {
+        console.error('getUserById error:', err);
+        throw err;
+    }
+},
+
   async registerUser(userData) {
     const res = await fetch(`${API_BASE}/auths/register`, {
       method: 'POST',
@@ -179,7 +193,52 @@ const api = {
           body: JSON.stringify({ broadcastMessage, severity })
       });
       return handleResponse(res);
-  }
+  },
+  
+  // ============ IMPORTANT SPOTS ============
+  async getImportantSpots(eventId) {
+    const res = await fetch(`${API_BASE}/important-spots/event/${eventId}`, {
+      method: 'GET',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  async createImportantSpot(eventId, spotData) {
+    const res = await fetch(`${API_BASE}/important-spots/${eventId}`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(spotData)
+    });
+    return handleResponse(res);
+  },
+
+  async updateImportantSpot(spotId, spotData) {
+    const res = await fetch(`${API_BASE}/important-spots/update/${spotId}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(spotData)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteImportantSpot(spotId) {
+    const res = await fetch(`${API_BASE}/important-spots/${spotId}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  // ============ NOTIFICATIONS / BROADCAST ============
+  async sendBroadcast(broadcastData) {
+    const res = await fetch(`${API_BASE}/notifications/broadcast`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(broadcastData)
+    });
+    return handleResponse(res);
+  },
 };
 
 export default api;

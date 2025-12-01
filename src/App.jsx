@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { NotificationProvider } from './contexts/NotificationContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -64,11 +65,13 @@ function AppRoutes() {
 const App = () => {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <HashRouter>
-          <AppRoutes />
-        </HashRouter>
-      </AuthProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <HashRouter>
+            <AppRoutes />
+          </HashRouter>
+        </AuthProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 };

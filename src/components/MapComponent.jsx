@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -9,7 +8,7 @@ const MapComponent = forwardRef(({
     participantLocations, 
     mapboxToken, 
     participantDisplayMode = 'dots', 
-    theme = 'light',
+    theme = 'light', // kept for props compatibility but ignoring for map style
     isManageZonesMode = false,
     zones = [],
     onZoneCreated,
@@ -31,7 +30,9 @@ const MapComponent = forwardRef(({
         // Prevent multiple initializations
         if (map.current) return;
 
-        const mapStyle = theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
+        // User requested the BRIGHTER variation (Streets v12) even in dark mode
+        // This creates a high-contrast "Command Center" look
+        const mapStyle = 'mapbox://styles/mapbox/streets-v12';
         const defaultCenter = [106.8456, -6.2088]; // Jakarta
         const initialCenter = center || (initialSelection ? [initialSelection.longitude, initialSelection.latitude] : defaultCenter);
 
@@ -117,7 +118,7 @@ const MapComponent = forwardRef(({
                 paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-dasharray': [2, 2] }
             });
             
-            // Zone Labels
+            // Zone Labels - Adjusted for Bright Map (Black text with White Halo)
             map.current.addLayer({
                 id: 'zones-labels',
                 type: 'symbol',
@@ -130,9 +131,10 @@ const MapComponent = forwardRef(({
                     'text-anchor': 'center'
                 },
                 paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': '#000000',
-                    'text-halo-width': 2
+                    'text-color': '#000000', 
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 2,
+                    'text-halo-blur': 1
                 }
             });
 
@@ -214,7 +216,7 @@ const MapComponent = forwardRef(({
         if (selectionMarker.current) selectionMarker.current.remove();
         
         const el = document.createElement('div');
-        el.className = 'w-8 h-8 text-indigo-500';
+        el.className = 'w-8 h-8 text-indigo-600'; // Darker indigo for bright map
         el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 drop-shadow-lg"><path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" /></svg>`;
 
         selectionMarker.current = new mapboxgl.Marker(el, { anchor: 'bottom' })
@@ -304,7 +306,8 @@ const MapComponent = forwardRef(({
                 participantMarkers.current[p.userId].setLngLat([p.longitude, p.latitude]);
             } else {
                 const el = document.createElement('div');
-                el.className = 'w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-150 cursor-pointer';
+                // Use a darker blue for better contrast on bright map
+                el.className = 'w-3 h-3 bg-blue-600 rounded-full border-2 border-white shadow-md transition-transform hover:scale-150 cursor-pointer';
                 el.title = p.name || 'User';
 
                 const marker = new mapboxgl.Marker(el)
