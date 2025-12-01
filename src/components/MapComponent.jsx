@@ -89,7 +89,36 @@ const MapComponent = forwardRef(({
                     ) {
                         addSelectionMarker(initialSelection.longitude, initialSelection.latitude);
                     }
-                    map.current.addSource('zones-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+                    // Add zones source if not present
+                    if (!map.current.getSource('zones-data')) {
+                        map.current.addSource('zones-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+                    }
+                    // Add fill layer for zones if not present
+                    if (!map.current.getLayer('zones-fill')) {
+                        map.current.addLayer({
+                            id: 'zones-fill',
+                            type: 'fill',
+                            source: 'zones-data',
+                            layout: {},
+                            paint: {
+                                'fill-color': ['get', 'color'],
+                                'fill-opacity': 0.3
+                            }
+                        });
+                    }
+                    // Add line layer for zone borders if not present
+                    if (!map.current.getLayer('zones-line')) {
+                        map.current.addLayer({
+                            id: 'zones-line',
+                            type: 'line',
+                            source: 'zones-data',
+                            layout: {},
+                            paint: {
+                                'line-color': ['get', 'color'],
+                                'line-width': 2
+                            }
+                        });
+                    }
                 });
                 map.current.on('error', (e) => {
                     console.error('Mapbox error:', e);
@@ -127,9 +156,21 @@ const MapComponent = forwardRef(({
 
     useEffect(() => {
         if (!map.current || !mapLoaded || !zones) return;
+        // Backend: zone.area is GeoJSON Polygon, zone.color is string
+        const features = zones
+            .filter(zone => zone.area && zone.area.type === 'Polygon' && Array.isArray(zone.area.coordinates))
+            .map(zone => ({
+                type: 'Feature',
+                id: zone.id,
+                properties: {
+                    color: zone.color || '#888888',
+                    name: zone.name
+                },
+                geometry: zone.area
+            }));
         const source = map.current.getSource('zones-data');
         if (source) {
-            source.setData({ type: 'FeatureCollection', features: zones.map(zone => ({ type: 'Feature', id: zone.id, properties: { color: zone.color || '#888888', name: zone.name }, geometry: zone.area.geometry || zone.area })) });
+            source.setData({ type: 'FeatureCollection', features });
         }
     }, [zones, mapLoaded]);
 
