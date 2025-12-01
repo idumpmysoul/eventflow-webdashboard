@@ -19,6 +19,9 @@ const SettingsPage = () => {
     const [loading, setLoading] = useState(true);
     const [isCopied, setIsCopied] = useState(false);
     const [confirmFinishText, setConfirmFinishText] = useState('');
+    const [confirmDeleteText, setConfirmDeleteText] = useState('');
+    const [statusUpdate, setStatusUpdate] = useState(null);
+    const [statusLoading, setStatusLoading] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
     useEffect(() => {
@@ -32,6 +35,7 @@ const SettingsPage = () => {
                 setLoading(true);
                 const data = await api.getEventById(selectedEventId);
                 setEventDetails(data);
+                setStatusUpdate(data.status);
             } catch (error) {
                 notify(`Error fetching event details: ${error.message}`, 'alert');
             } finally {
@@ -40,6 +44,17 @@ const SettingsPage = () => {
         };
         fetchEvent();
     }, [selectedEventId, navigate, notify]);
+    const handleStatusUpdate = async () => {
+        setStatusLoading(true);
+        try {
+            await api.updateEvent(selectedEventId, { status: statusUpdate });
+            notify('Event status updated!', 'info');
+        } catch (error) {
+            notify(`Failed to update status: ${error.message}`, 'alert');
+        } finally {
+            setStatusLoading(false);
+        }
+    };
 
     const handleCopyCode = () => {
         if (eventDetails?.joinCode) {
@@ -58,6 +73,20 @@ const SettingsPage = () => {
             notify('Event details updated successfully!', 'info');
         } catch (error) {
             notify(`Failed to update details: ${error.message}`, 'alert');
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleDeleteEvent = async () => {
+        if (!window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) return;
+        setIsUpdating(true);
+        try {
+            await api.deleteEvent(selectedEventId);
+            notify('Event has been deleted.', 'info');
+            navigate('/events');
+        } catch (error) {
+            notify(`Failed to delete event: ${error.message}`, 'alert');
         } finally {
             setIsUpdating(false);
         }
@@ -139,27 +168,87 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
-                {/* Danger Zone */}
-                <div className="bg-red-900/20 border border-red-500/30 p-6 rounded-xl">
+                {/* Event Status Update Section */}
+                <div className="bg-blue-900/40 border border-blue-700 p-6 rounded-xl">
+                    <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center gap-2">
+                        <i className="fa-solid fa-pen-to-square mr-2" /> Update Event Status
+                    </h2>
+                    <p className="text-blue-200 mb-4">Change the status of your event below. Status will affect participant activity and event visibility.</p>
+                    <div className="flex gap-4 items-center">
+                        <select
+                            className="bg-blue-950 text-blue-200 px-4 py-2 rounded border border-blue-700 focus:outline-none"
+                            value={statusUpdate}
+                            onChange={e => setStatusUpdate(e.target.value)}
+                        >
+                            <option value="UPCOMING">UPCOMING</option>
+                            <option value="ONGOING">ONGOING</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                        <button
+                            className="bg-blue-700 text-white px-4 py-2 rounded font-semibold disabled:opacity-50"
+                            disabled={statusLoading || statusUpdate === eventDetails.status}
+                            onClick={handleStatusUpdate}
+                        >
+                            {statusLoading ? 'Updating...' : 'Update Status'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Finish Event Section */}
+                <div className="bg-yellow-900/40 border border-yellow-700 p-6 rounded-xl">
+                    <h2 className="text-xl font-bold text-yellow-400 mb-2 flex items-center gap-2">
+                        <i className="fa-solid fa-flag-checkered mr-2" /> Finish Event
+                    </h2>
+                    <p className="text-yellow-300 mb-4">
+                        This will mark the event as <b>COMPLETED</b> and deactivate all participants. This action cannot be undone.
+                    </p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-yellow-200">To confirm, type "FINISH" below:</span>
+                    </div>
+                    <div className="flex gap-2 mb-4">
+                        <input
+                            type="text"
+                            className="bg-yellow-950 text-yellow-200 px-4 py-2 rounded w-40 border border-yellow-700 focus:outline-none"
+                            value={confirmFinishText}
+                            onChange={e => setConfirmFinishText(e.target.value)}
+                            placeholder="FINISH"
+                        />
+                        <button
+                            className="bg-yellow-700 text-white px-4 py-2 rounded font-semibold disabled:opacity-50"
+                            disabled={isUpdating || confirmFinishText !== 'FINISH'}
+                            onClick={handleFinishEvent}
+                        >
+                            {isUpdating ? 'Finishing...' : 'Finish Event'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Danger Zone: Delete Event Only */}
+                <div className="bg-red-900/40 border border-red-700 p-6 rounded-xl">
                     <h2 className="text-xl font-bold text-red-400 mb-2 flex items-center gap-2">
                         <ExclamationTriangleIcon className="w-6 h-6" /> Danger Zone
                     </h2>
-                    <p className="text-red-300/80 text-sm mb-4">This action is irreversible. It will mark the event as completed and deactivate all participants.</p>
-                    <div className="space-y-4">
-                        <label className="block text-sm font-medium text-slate-300">To confirm, type "FINISH" below:</label>
-                        <input 
+                    <p className="text-red-300 mb-4">
+                        <b>Delete this event permanently.</b> This action is irreversible and will remove all event data.
+                    </p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-red-200">To delete this event, type <b>DELETE {eventDetails.name}</b> below:</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <input
                             type="text"
-                            value={confirmFinishText}
-                            onChange={(e) => setConfirmFinishText(e.target.value)}
-                            className="w-full max-w-xs bg-red-950/50 border border-red-500/50 rounded-lg px-4 py-2 text-white placeholder-red-400/30"
-                            placeholder="FINISH"
+                            className="bg-red-950 text-red-200 px-4 py-2 rounded w-56 border border-red-700 focus:outline-none"
+                            value={confirmDeleteText}
+                            onChange={e => setConfirmDeleteText(e.target.value)}
+                            placeholder={`DELETE ${eventDetails.name}`}
                         />
-                        <button 
-                            onClick={handleFinishEvent}
-                            disabled={isUpdating || confirmFinishText !== 'FINISH'}
-                            className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        <button
+                            className="bg-red-700 text-white px-4 py-2 rounded font-semibold disabled:opacity-50"
+                            disabled={isUpdating || confirmDeleteText !== `DELETE ${eventDetails.name}`}
+                            onClick={handleDeleteEvent}
                         >
-                            {isUpdating ? 'Finishing...' : 'Finish Event'}
+                            {isUpdating ? 'Deleting...' : 'Delete Event'}
                         </button>
                     </div>
                 </div>
