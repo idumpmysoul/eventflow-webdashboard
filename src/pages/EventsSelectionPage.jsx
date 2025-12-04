@@ -40,6 +40,43 @@ const EventsSelectionPage = () => {
       latitude: null,
       longitude: null
   });
+    const [searchingLocation, setSearchingLocation] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    // Fungsi geocoding Mapbox
+    const handleSearchLocation = async () => {
+        setSearchError('');
+        setSearchResults([]);
+        if (!formData.locationName) {
+            setSearchError('Silakan ketik nama lokasi.');
+            return;
+        }
+        setSearchingLocation(true);
+        try {
+            const accessToken = VITE_MAPBOX_TOKEN;
+            const query = encodeURIComponent(formData.locationName);
+            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${accessToken}&limit=5&country=ID`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.features && data.features.length > 0) {
+                setSearchResults(data.features);
+            } else {
+                setSearchError('Lokasi tidak ditemukan.');
+            }
+        } catch (err) {
+            setSearchError('Gagal mencari lokasi.');
+        }
+        setSearchingLocation(false);
+    };
+
+    const handleSelectSearchResult = (feature) => {
+        if (feature && feature.center) {
+            const [lng, lat] = feature.center;
+            setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, locationName: feature.place_name }));
+            setSearchResults([]);
+            setSearchError('');
+        }
+    };
   const [createdEventCode, setCreatedEventCode] = useState(null);
   const mapRef = useRef(null); 
   
@@ -300,10 +337,12 @@ const EventsSelectionPage = () => {
               <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
                   {/* Modal Header */}
                   <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                      <div>
-                          <h2 className="text-xl font-bold text-white">Create New Event</h2>
-                          <p className="text-sm text-slate-400">Step {currentStep} of 3</p>
-                      </div>
+                                            <div>
+                                                    <h2 className="text-xl font-bold text-white">Create New Event</h2>
+                                                    <p className="text-sm text-slate-400">
+                                                        {currentStep < 4 ? `Step ${currentStep} of 3` : 'Event Created'}
+                                                    </p>
+                                            </div>
                       <button onClick={resetModal} className="text-slate-400 hover:text-white">
                           <XMarkIcon className="w-6 h-6" />
                       </button>
@@ -346,40 +385,78 @@ const EventsSelectionPage = () => {
                           </div>
                       )}
 
-                      {currentStep === 2 && (
-                                                    <div className="h-full flex flex-col">
-                                                            <div className="mb-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
-                                                                    Click on the map to pin the exact event location.
-                                                            </div>
-                                                            <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800">
-                                                                {VITE_MAPBOX_TOKEN ? (
-                                                                    <MapComponent
-                                                                        ref={mapRef}
-                                                                        mapboxToken={VITE_MAPBOX_TOKEN}
-                                                                        onLocationSelect={handleLocationSelect}
-                                                                        initialSelection={
-                                                                            typeof formData.latitude === 'number' && typeof formData.longitude === 'number'
-                                                                                ? { latitude: formData.latitude, longitude: formData.longitude }
-                                                                                : null
-                                                                        }
-                                                                        theme="dark"
-                                                                        isAddingSpotMode={currentStep === 2}
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-red-400 p-4 text-center">
-                                                                        <div>
-                                                                            <p className="font-bold mb-2">Mapbox Token Missing</p>
-                                                                            <p className="text-sm">Please add VITE_MAPBOX_TOKEN to your .env file</p>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {formData.latitude && (
-                                                                <p className="mt-2 text-sm text-green-400 flex items-center gap-2">
-                                                                    <CheckCircleIcon className="w-4 h-4" /> Location Selected: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
-                                                                </p>
-                                                            )}
+                                            {currentStep === 2 && (
+                                                <div className="h-full flex flex-col gap-4">
+                                                    <div className="mb-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 p-3 rounded-lg text-sm">
+                                                        Anda bisa klik di peta <b>atau</b> ketik lokasi di bawah.
                                                     </div>
+                                                    <div className="flex-1 min-h-[400px] h-96 rounded-xl overflow-hidden border border-slate-700 relative bg-slate-800 mb-4">
+                                                        {VITE_MAPBOX_TOKEN ? (
+                                                            <MapComponent
+                                                                ref={mapRef}
+                                                                mapboxToken={VITE_MAPBOX_TOKEN}
+                                                                onLocationSelect={handleLocationSelect}
+                                                                initialSelection={
+                                                                    typeof formData.latitude === 'number' && typeof formData.longitude === 'number'
+                                                                        ? { latitude: formData.latitude, longitude: formData.longitude }
+                                                                        : null
+                                                                }
+                                                                theme="dark"
+                                                                isAddingSpotMode={currentStep === 2}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-red-400 p-4 text-center">
+                                                                <div>
+                                                                    <p className="font-bold mb-2">Mapbox Token Missing</p>
+                                                                    <p className="text-sm">Please add VITE_MAPBOX_TOKEN to your .env file</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {formData.latitude && (
+                                                        <p className="mt-2 text-sm text-green-400 flex items-center gap-2">
+                                                            <CheckCircleIcon className="w-4 h-4" /> Lokasi dipilih: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                                                        </p>
+                                                    )}
+                                                    <div className="mt-4">
+                                                        <label className="block text-sm font-medium text-slate-400 mb-1">Nama/Lokasi Tempat</label>
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                name="locationName"
+                                                                value={formData.locationName}
+                                                                onChange={handleInputChange}
+                                                                className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                                placeholder="Gedung DPR RI, Jakarta"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleSearchLocation}
+                                                                disabled={searchingLocation || !formData.locationName}
+                                                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                                            >
+                                                                {searchingLocation ? 'Mencari...' : 'Cari'}
+                                                            </button>
+                                                        </div>
+                                                        {searchError && (
+                                                            <div className="mt-2 text-red-400 text-sm">{searchError}</div>
+                                                        )}
+                                                        {searchResults.length > 0 && (
+                                                            <div className="mt-2 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 max-h-48 overflow-y-auto">
+                                                                <div className="mb-1 text-xs text-slate-400">Pilih lokasi yang paling sesuai:</div>
+                                                                {searchResults.map((feature, idx) => (
+                                                                    <button
+                                                                        key={feature.id || idx}
+                                                                        type="button"
+                                                                        onClick={() => handleSelectSearchResult(feature)}
+                                                                        className="block w-full text-left px-2 py-1 rounded hover:bg-indigo-600/30 focus:bg-indigo-600/40 transition-colors"
+                                                                    >
+                                                                        {feature.place_name}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                       )}
 
                       {currentStep === 3 && (

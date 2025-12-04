@@ -15,9 +15,20 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     const savedEventId = localStorage.getItem('selectedEventId');
 
-    if (savedToken && savedUser) {
+    // Check token validity (simple: missing/empty/expired)
+    let validToken = !!savedToken;
+    // Optionally: decode JWT and check exp (if you want strict expiry)
+    // If token is missing or empty, force logout
+    if (!validToken) {
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedEventId');
+    } else {
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      setUser(savedUser ? JSON.parse(savedUser) : null);
       setIsAuthenticated(true);
     }
 

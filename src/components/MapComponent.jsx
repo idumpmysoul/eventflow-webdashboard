@@ -172,9 +172,17 @@ const MapComponent = forwardRef(({
     }, [isManageZonesMode, mapLoaded, onZoneCreated]);
 
     useEffect(() => {
-        if (!map.current || !mapLoaded || !zones) return;
+        if (!map.current || !mapLoaded) return;
+        // Debug log
+        console.log('Zones updated:', zones);
+        // Remove all zone layers and sources before re-adding
+        if (map.current.getLayer('zones-fill')) map.current.removeLayer('zones-fill');
+        if (map.current.getLayer('zones-line')) map.current.removeLayer('zones-line');
+        if (map.current.getSource('zones-data')) map.current.removeSource('zones-data');
+        // Ensure zones is always an array
+        const safeZones = Array.isArray(zones) ? zones : [];
         // Backend: zone.area is GeoJSON Polygon, zone.color is string
-        const features = zones
+        const features = safeZones
             .filter(zone => zone.area && zone.area.type === 'Polygon' && Array.isArray(zone.area.coordinates))
             .map(zone => ({
                 type: 'Feature',
@@ -185,9 +193,44 @@ const MapComponent = forwardRef(({
                 },
                 geometry: zone.area
             }));
-        const source = map.current.getSource('zones-data');
-        if (source) {
-            source.setData({ type: 'FeatureCollection', features });
+        // --- FIX: Wait for style to be loaded before adding source/layer ---
+        const addZonesSourceAndLayers = () => {
+            if (!map.current.getSource('zones-data')) {
+                map.current.addSource('zones-data', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+            }
+            if (!map.current.getLayer('zones-fill')) {
+                map.current.addLayer({
+                    id: 'zones-fill',
+                    type: 'fill',
+                    source: 'zones-data',
+                    layout: {},
+                    paint: {
+                        'fill-color': ['get', 'color'],
+                        'fill-opacity': 0.3
+                    }
+                });
+            }
+            if (!map.current.getLayer('zones-line')) {
+                map.current.addLayer({
+                    id: 'zones-line',
+                    type: 'line',
+                    source: 'zones-data',
+                    layout: {},
+                    paint: {
+                        'line-color': ['get', 'color'],
+                        'line-width': 2
+                    }
+                });
+            }
+        };
+        if (map.current.isStyleLoaded()) {
+            addZonesSourceAndLayers();
+        } else {
+            const onStyleData = () => {
+                addZonesSourceAndLayers();
+                map.current.off('styledata', onStyleData);
+            };
+            map.current.on('styledata', onStyleData);
         }
     }, [zones, mapLoaded]);
 
@@ -218,35 +261,38 @@ const MapComponent = forwardRef(({
     // Spot Markers Logic
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        
-        const activeSpotIds = new Set(spots.map(s => s.id));
-
-        // Update or create spot markers
-        spots.forEach(spot => {
-            if (spotMarkers.current[spot.id]) {
-                spotMarkers.current[spot.id].setLngLat([spot.longitude, spot.latitude]);
-            } else {
-                const el = document.createElement('div');
-                el.className = 'w-7 h-7 bg-green-600 border-2 border-white rounded-full flex items-center justify-center text-white shadow-lg';
-                el.innerHTML = spotIcons[spot.type] || spotIcons.OTHER;
-                
-                const marker = new mapboxgl.Marker(el)
-                    .setLngLat([spot.longitude, spot.latitude])
-                    .setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`<div class="p-1 text-slate-900"><div class="font-bold text-xs">${spot.name}</div><div class="text-xs text-slate-600">${spot.type}</div></div>`))
-                    .addTo(map.current);
-                
-                spotMarkers.current[spot.id] = marker;
-            }
-        });
-
-        // Remove stale spot markers
+        // Debug log
+        console.log('Spots updated:', spots);
+        // Remove all spot markers before re-adding
         Object.keys(spotMarkers.current).forEach(id => {
-            if (!activeSpotIds.has(id)) {
-                spotMarkers.current[id].remove();
-                delete spotMarkers.current[id];
-            }
+            spotMarkers.current[id].remove();
+            delete spotMarkers.current[id];
         });
+        // Ensure spots is always an array
+        const safeSpots = Array.isArray(spots) ? spots : [];
+        safeSpots.forEach(spot => {
+            const el = document.createElement('div');
+            el.className = 'w-7 h-7 bg-green-600 border-2 border-white rounded-full flex items-center justify-center text-white shadow-lg';
+            el.innerHTML = spotIcons[spot.type] || spotIcons.OTHER;
 
+            // Popup label: jika type OTHER, tampilkan customType
+            let typeLabel = spot.type;
+            if (spot.type === 'OTHER' && spot.customType) {
+                typeLabel = `OTHER (${spot.customType})`;
+            }
+
+            const marker = new mapboxgl.Marker(el)
+                .setLngLat([spot.longitude, spot.latitude])
+                .setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
+                    <div class="p-1" style="color:#fff;">
+                        <div class="font-bold text-xs" style="color:#fff;">${spot.name}</div>
+                        <div class="text-xs" style="color:#a7f3d0;">${typeLabel}</div>
+                    </div>
+                `))
+                .addTo(map.current);
+
+            spotMarkers.current[spot.id] = marker;
+        });
     }, [spots, mapLoaded]);
 
 
@@ -346,8 +392,8 @@ const MapComponent = forwardRef(({
         return (
             <div
                 ref={mapContainer}
-                className="w-full h-full min-h-[400px] bg-slate-800 rounded-xl border border-slate-700"
-                style={{ minHeight: 400, background: '#232946', borderRadius: '0.75rem', border: '1px solid #334155' }}
+                className="w-full h-full min-h-[400px] bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700"
+                style={{ minHeight: 400, borderRadius: '0.75rem' }}
             />
         );
 });

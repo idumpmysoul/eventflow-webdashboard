@@ -95,21 +95,21 @@ const HeatmapPage = () => {
     const mapCenter = eventDetails ? [eventDetails.longitude, eventDetails.latitude] : null;
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-200">
             {usingMockData && <MockDataBanner />}
             <header className="p-6">
-                <Title className='text-2xl'>Participant Heatmap</Title>
-                <Subtitle>Crowd density visualization</Subtitle>
+                <Title className="text-2xl text-black dark:text-white">Participant Heatmap</Title>
+                <Subtitle className="text-gray-500 dark:text-slate-400">Crowd density visualization</Subtitle>
             </header>
             <main className="flex-grow p-6 pt-0">
-                <div className="h-full w-full rounded-lg overflow-hidden">
+                <div className="h-full w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-900">
                         { !VITE_MAPBOX_TOKEN ? (
-                            <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg text-center p-4">
-                            <p>Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-900 rounded-lg text-center p-4">
+                            <p className="text-gray-500 dark:text-slate-400">Map is unavailable. <br />Please provide a VITE_MAPBOX_TOKEN in your environment configuration.</p>
                         </div>
                     ) : loading || !mapCenter ? (
-                        <div className="w-full h-full flex items-center justify-center bg-background dark:bg-dark-background rounded-lg">
-                            <p>Loading map data...</p>
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-900 rounded-lg">
+                            <p className="text-gray-500 dark:text-slate-400">Loading map data...</p>
                         </div>
                     ) : (
                         <MapComponent

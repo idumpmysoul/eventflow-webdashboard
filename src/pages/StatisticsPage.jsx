@@ -118,61 +118,61 @@ const StatisticsPage = () => {
     const COLORS = ['#6366f1', '#ec4899', '#eab308', '#22c55e'];
     
     return (
-        <div className="p-6 md:p-8 h-full overflow-y-auto bg-slate-950 text-slate-200">
+        <div className="p-6 md:p-8 h-full overflow-y-auto bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-200">
             {usingMockData && <MockDataBanner/>}
             
             <header className="mb-8">
-                <h1 className="text-3xl font-bold text-white">Analytics Overview</h1>
-                <p className="text-slate-400">Real-time insights into event safety and participation.</p>
+                <h1 className="text-3xl font-bold text-black dark:text-white">Analytics Overview</h1>
+                <p className="text-gray-500 dark:text-slate-400">Real-time insights into event safety and participation.</p>
             </header>
 
             {loading ? (
                 <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div></div>
             ) : !stats ? (
-                <div className="text-center text-slate-500">No data available yet.</div>
+                <div className="text-center text-gray-400 dark:text-slate-500">No data available yet.</div>
             ) : (
                 <div className="space-y-6">
                     {/* Top KPIs */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                        <div className="bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl relative overflow-hidden">
                             <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
                                 <ArrowTrendingUpIcon className="w-24 h-24 text-indigo-500" />
                             </div>
-                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Total Incidents</div>
-                            <div className="text-4xl font-bold text-white">{stats.total}</div>
-                            <div className="text-green-400 text-sm mt-2 flex items-center gap-1">
+                            <div className="text-gray-500 dark:text-slate-400 text-sm font-medium uppercase mb-1">Total Incidents</div>
+                            <div className="text-4xl font-bold text-black dark:text-white">{stats.total}</div>
+                            <div className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-1">
                                 <span className="bg-green-500/20 px-1.5 py-0.5 rounded">+12%</span> vs last hour
                             </div>
                         </div>
-                         <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                         <div className="bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl relative overflow-hidden">
                              <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
                                 <ShieldCheckIcon className="w-24 h-24 text-emerald-500" />
                             </div>
-                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Resolution Rate</div>
-                            <div className="text-4xl font-bold text-white">
+                            <div className="text-gray-500 dark:text-slate-400 text-sm font-medium uppercase mb-1">Resolution Rate</div>
+                            <div className="text-4xl font-bold text-black dark:text-white">
                                 {Math.round((reports.filter(r => r.status === 'RESOLVED').length / stats.total) * 100) || 0}%
                             </div>
-                            <div className="text-slate-500 text-sm mt-2">
+                            <div className="text-gray-400 dark:text-slate-500 text-sm mt-2">
                                 {reports.filter(r => r.status === 'RESOLVED').length} resolved issues
                             </div>
                         </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden">
+                        <div className="bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl relative overflow-hidden">
                             <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
                                 <UserGroupIcon className="w-24 h-24 text-blue-500" />
                             </div>
-                            <div className="text-slate-400 text-sm font-medium uppercase mb-1">Top Category</div>
-                            <div className="text-4xl font-bold text-white truncate">
+                            <div className="text-gray-500 dark:text-slate-400 text-sm font-medium uppercase mb-1">Top Category</div>
+                            <div className="text-4xl font-bold text-black dark:text-white truncate">
                                 {stats.categoryData.sort((a,b) => b.value - a.value)[0]?.name || 'N/A'}
                             </div>
-                            <div className="text-slate-500 text-sm mt-2">Most frequent report type</div>
+                            <div className="text-gray-400 dark:text-slate-500 text-sm mt-2">Most frequent report type</div>
                         </div>
                     </div>
 
                     {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Incident Trend Area Chart */}
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                            <h3 className="text-lg font-bold text-white mb-6">Incident Reporting Trend</h3>
+                        <div className="bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl">
+                            <h3 className="text-lg font-bold text-black dark:text-white mb-6">Incident Reporting Trend</h3>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={stats.timeData}>
@@ -182,12 +182,13 @@ const StatisticsPage = () => {
                                                 <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                        <XAxis dataKey="time" stroke="#94a3b8" tick={{fontSize: 12}} />
-                                        <YAxis stroke="#94a3b8" tick={{fontSize: 12}} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" dark:stroke="#334155" vertical={false} />
+                                        <XAxis dataKey="time" stroke="#64748b" dark:stroke="#94a3b8" tick={{fontSize: 12}} />
+                                        <YAxis stroke="#64748b" dark:stroke="#94a3b8" tick={{fontSize: 12}} />
                                         <Tooltip 
-                                            contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff'}} 
-                                            itemStyle={{color: '#fff'}}
+                                            contentStyle={{backgroundColor: '#fff', color: '#000', borderColor: '#e5e7eb'}} 
+                                            itemStyle={{color: '#000'}}
+                                            wrapperStyle={{backgroundColor: 'var(--tw-bg-opacity,1)'}}
                                         />
                                         <Area type="monotone" dataKey="count" stroke="#6366f1" fillOpacity={1} fill="url(#colorCount)" />
                                     </AreaChart>
@@ -196,13 +197,13 @@ const StatisticsPage = () => {
                         </div>
 
                         {/* Category Bar Chart */}
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                            <h3 className="text-lg font-bold text-white mb-6">Reports by Category</h3>
+                        <div className="bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl">
+                            <h3 className="text-lg font-bold text-black dark:text-white mb-6">Reports by Category</h3>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={stats.categoryData} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                                        <XAxis type="number" stroke="#94a3b8" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" dark:stroke="#334155" horizontal={false} />
+                                        <XAxis type="number" stroke="#64748b" dark:stroke="#94a3b8" />
                                         <YAxis dataKey="name" type="category" width={100} stroke="#94a3b8" />
                                         <Tooltip cursor={{fill: '#334155', opacity: 0.2}} contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff'}} />
                                         <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]}>

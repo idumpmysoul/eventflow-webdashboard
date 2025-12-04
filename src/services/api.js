@@ -17,9 +17,9 @@ const handleResponse = async (res) => {
     window.location.href = '#/login';
     throw new Error('Unauthorized - Please login again');
   }
-
+  
   const json = await res.json().catch(() => ({ message: res.statusText }));
-
+  
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${json.message || json.error || res.statusText}`);
   }
@@ -53,8 +53,8 @@ const api = {
       });
       return handleResponse(res);
     },
-  // ============ AUTHENTICATION ============
-  async loginUser(email, password) {
+    // ============ AUTHENTICATION ============
+    async loginUser(email, password) {
     const res = await fetch(`${API_BASE}/auths/login`, {
       method: 'POST',
       headers: headers(false),
@@ -73,8 +73,10 @@ const api = {
   },
 
   async logoutUser() {
-    // Backend is stateless JWT, so just return success immediately.
-    // The client-side token removal happens in the AuthContext or call site.
+    // Remove token and user data from localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('selectedEventId');
     return Promise.resolve({ success: true });
   },
 
@@ -94,16 +96,16 @@ const api = {
     });
     return handleResponse(res);
   },
-
+  
   async createEvent(eventData) {
       const res = await fetch(`${API_BASE}/events`, {
-          method: 'POST',
+        method: 'POST',
           headers: headers(true),
           body: JSON.stringify(eventData)
-      });
-      return handleResponse(res);
-  },
-
+        });
+        return handleResponse(res);
+      },
+      
   async updateEvent(eventId, eventData) {
     const res = await fetch(`${API_BASE}/events/${eventId}`, {
       method: 'PATCH',
@@ -113,6 +115,18 @@ const api = {
     return handleResponse(res);
   },
 
+
+  // ============ USER NOTIFICATION (INDIVIDUAL) ============
+  async sendUserNotification({ userId, eventId, message, title, type = 'GENERAL' }) {
+    // POST ke /user-notifications
+    const res = await fetch(`${API_BASE}/user-notifications`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify({ userId, eventId, message, title, type }),
+    });
+    return handleResponse(res);
+  },
+  
   async finishEvent(eventId) {
     const res = await fetch(`${API_BASE}/events/${eventId}/finish`, {
       method: 'PATCH',
@@ -248,6 +262,14 @@ const api = {
       method: 'POST',
       headers: headers(true),
       body: JSON.stringify(broadcastData)
+    });
+    return handleResponse(res);
+  },
+
+  async getReportAIResultsByReportId(reportId) {
+    const res = await fetch(`${API_BASE}/reports-ai/report/${reportId}`, {
+      method: 'GET',
+      headers: headers(true),
     });
     return handleResponse(res);
   },

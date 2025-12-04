@@ -13,6 +13,7 @@ import ParticipantsPage from './pages/ParticipantsPage.jsx';
 import HeatmapPage from './pages/HeatmapPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import OrganizerReportPage from './pages/OrganizerReportPage.jsx';
 
 function AppRoutes() {
   const { isAuthenticated, loading, selectedEventId } = useAuth();
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="participants" element={<ParticipantsPage />} />
         <Route path="heatmap" element={<HeatmapPage />} />
+        <Route path="reports" element={<OrganizerReportPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

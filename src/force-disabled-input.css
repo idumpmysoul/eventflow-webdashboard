@@ -1,0 +1,10 @@
+/* Force disabled input value to black in light mode */
+input:disabled {
+  color: #111827 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  input:disabled {
+    color: #fff !important;
+  }
+}
