@@ -8,8 +8,8 @@ import IncidentFeed from '../components/IncidentFeed.jsx';
 import IncidentDetailModal from '../components/IncidentDetailModal.jsx';
 import ZoneSidebar from '../components/ZoneSidebar.jsx';
 import SpotSidebar from '../components/SpotSidebar.jsx';
-import BroadcastModal from '../components/BroadcastModal.jsx';
 import MockDataBanner from '../components/MockDataBanner.jsx';
+import AttendanceStatsCard from '../components/AttendanceStatsCard.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifier } from '../contexts/NotificationContext.jsx';
 import { SpotType } from '../types.js';
@@ -26,7 +26,8 @@ import {
     SignalIcon,
     Square3Stack3DIcon,
     MegaphoneIcon,
-    PlusIcon
+    PlusIcon,
+    ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 const VITE_MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -62,7 +63,7 @@ const DashboardPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
-    const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+    const [isAttendanceExpanded, setIsAttendanceExpanded] = useState(false);
     
     // Zone Management States
     const [isManageZonesMode, setIsManageZonesMode] = useState(false);
@@ -75,7 +76,7 @@ const DashboardPage = () => {
     const [isManageSpotsMode, setIsManageSpotsMode] = useState(false);
     const [isAddingSpotMode, setIsAddingSpotMode] = useState(false);
     const [isSpotModalOpen, setIsSpotModalOpen] = useState(false);
-    const [newSpotData, setNewSpotData] = useState({ name: '', type: 'OTHER', description: '', latitude: null, longitude: null });
+    const [newSpotData, setNewSpotData] = useState({ name: '', type: 'OTHER', latitude: null, longitude: null });
 
     const mapRef = useRef(null);
     const dataLoadedRef = useRef(false);
@@ -294,15 +295,93 @@ const DashboardPage = () => {
             notify(`${payload.userName || 'A user'} has ${payload.status === 'outside' ? 'exited' : 'entered'} a zone.`, 'alert');
         });
 
+        // --- Listen for attendance updates (auto check-in) ---
+        socket.on('attendanceUpdate', (payload) => {
+            if (payload.eventId === selectedEventId) {
+                console.log('[Socket] Attendance updated:', payload);
+                // Update participants list
+                setParticipants(prev => 
+                    prev.map(p => 
+                        (p.userId === payload.userId || p.user?.id === payload.userId)
+                            ? { 
+                                ...p, 
+                                attendanceStatus: payload.attendanceStatus,
+                                checkInTime: payload.checkInTime 
+                            }
+                            : p
+                    )
+                );
+                // Update participant locations (for map popup)
+                setParticipantLocations(prev => 
+                    prev?.map(p => 
+                        p.userId === payload.userId
+                            ? { 
+                                ...p, 
+                                attendanceStatus: payload.attendanceStatus 
+                            }
+                            : p
+                    ) || prev
+                );
+            }
+        });
+
         return () => {
             socket.emit('leaveEventRoom', selectedEventId);
             socket.off('locationUpdate');
             socket.off('liveReport');
             socket.off('notification');
             socket.off('geofenceEvent');
+            socket.off('attendanceUpdate');
             socket.disconnect();
         };
     }, [selectedEventId, usingMockData, loading, notify]);
+
+    // Merge participantLocations with participants to get attendance status
+    const participantLocationsWithAttendance = useMemo(() => {
+        if (!participantLocations || !participants) return participantLocations || [];
+        
+        const merged = participantLocations.map(location => {
+            const participant = participants.find(p => 
+                (p.userId === location.userId || p.user?.id === location.userId)
+            );
+            
+            const result = {
+                ...location,
+                attendanceStatus: participant?.attendanceStatus || location.attendanceStatus || 'PENDING',
+                checkInTime: participant?.checkInTime || location.checkInTime
+            };
+            
+            // Debug log untuk participant yang PRESENT
+            if (result.attendanceStatus === 'PRESENT') {
+                console.log('[Attendance Merge] PRESENT:', {
+                    userId: result.userId,
+                    name: result.user?.name || result.name,
+                    status: result.attendanceStatus,
+                    checkInTime: result.checkInTime
+                });
+            }
+            
+            return result;
+        });
+        
+        return merged;
+    }, [participantLocations, participants]);
+
+    // Resize map when attendance panel expands/collapses
+    useEffect(() => {
+        // Wait for CSS transition to complete, then resize map and refresh data
+        const timer = setTimeout(async () => {
+            if (mapRef.current?.resize) {
+                mapRef.current.resize();
+                console.log('[Map] Resized after attendance toggle');
+            }
+            // Refresh zones & spots after resize
+            await refreshLiveMapData();
+            console.log('[Map] Data refreshed after attendance toggle');
+        }, 400);
+        
+        return () => clearTimeout(timer);
+    }, [isAttendanceExpanded]);
 
     const toggleManageZones = async () => {
         const nextState = !isManageZonesMode;
@@ -310,6 +389,8 @@ const DashboardPage = () => {
         if (nextState) {
             setIsManageSpotsMode(false);
             setIsAddingSpotMode(false);
+            // Refresh data when opening Zone Manager
+            await refreshLiveMapData();
         } else {
             // Global auto-refresh: Fetch all Live Map data after closing Zone Manager
             await refreshLiveMapData();
@@ -322,6 +403,8 @@ const DashboardPage = () => {
         if (nextState) {
             setIsManageZonesMode(false);
             setIsAddingSpotMode(false);
+            // Refresh data when opening Spot Manager
+            await refreshLiveMapData();
         } else {
             // Global auto-refresh: Fetch all Live Map data after closing Spot Manager
             await refreshLiveMapData();
@@ -334,9 +417,11 @@ const DashboardPage = () => {
         if (selectedEventId) {
             // Refresh Zones
             const zonesResponse = await api.getVirtualAreas(selectedEventId);
+            console.log('[Refresh] Zones dari backend:', zonesResponse);
             setZones(Array.isArray(zonesResponse) ? [...zonesResponse] : []);
             // Refresh Spots
             const spotsResponse = await api.getImportantSpots(selectedEventId);
+            console.log('[Refresh] Spots dari backend:', spotsResponse);
             setSpots(Array.isArray(spotsResponse) ? [...spotsResponse] : []);
             // Tambahkan refresh lain jika perlu (misal participants, reports, dsb)
         }
@@ -388,10 +473,11 @@ const DashboardPage = () => {
 
     const handleUpdateZone = async (zoneId, updateData) => {
         try {
-            // In a real app, this would be an API call: await api.updateVirtualArea(zoneId, updateData);
-            setZones(prev => prev.map(z => z.id === zoneId ? { ...z, ...updateData } : z));
+            const updatedZone = await api.updateVirtualArea(zoneId, updateData);
+            setZones(prev => prev.map(z => z.id === zoneId ? updatedZone : z));
         } catch (err) {
             console.error(err);
+            notify(`Failed to update zone: ${err.message}`, 'alert');
         }
     };
 
@@ -438,7 +524,8 @@ const DashboardPage = () => {
         if(!confirm("Delete this spot?")) return;
         try {
             await api.deleteImportantSpot(spotId);
-            setSpots(prev => prev.filter(s => s.id !== spotId));
+            // Refresh all data to ensure zones & spots stay visible
+            await refreshLiveMapData();
         } catch(err) {
             console.error(err);
             notify(`Failed to delete spot: ${err.message}`, 'alert');
@@ -447,8 +534,9 @@ const DashboardPage = () => {
 
     const handleUpdateSpot = async (spotId, updateData) => {
         try {
-            const updatedSpot = await api.updateImportantSpot(spotId, updateData);
-            setSpots(prev => prev.map(s => s.id === spotId ? updatedSpot : s));
+            await api.updateImportantSpot(spotId, updateData);
+            // Refresh all data to ensure zones & spots stay visible
+            await refreshLiveMapData();
         } catch (err) {
             console.error(err);
             notify(`Failed to update spot: ${err.message}`, 'alert');
@@ -457,7 +545,7 @@ const DashboardPage = () => {
 
     const closeSpotModal = async () => {
         setIsSpotModalOpen(false);
-        setNewSpotData({ name: '', type: 'OTHER', description: '', latitude: null, longitude: null });
+        setNewSpotData({ name: '', type: 'OTHER', latitude: null, longitude: null });
         // Fetch spots again to restore map state after cancel
         if (selectedEventId) {
             const spotsResponse = await api.getImportantSpots(selectedEventId);
@@ -467,11 +555,11 @@ const DashboardPage = () => {
 
     // --- Filter Logic ---
     const filteredParticipants = useMemo(() => {
-        if (!searchQuery) return participantLocations;
-        return participantLocations.filter(p => 
+        if (!searchQuery) return participantLocationsWithAttendance;
+        return participantLocationsWithAttendance.filter(p => 
             (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase()))
         );
-    }, [participantLocations, searchQuery]);
+    }, [participantLocationsWithAttendance, searchQuery]);
 
     const filteredReports = useMemo(() => {
         if (!searchQuery) return reports;
@@ -495,8 +583,6 @@ const DashboardPage = () => {
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-slate-950 text-black dark:text-slate-200 overflow-hidden relative">
-            
-            {isBroadcastModalOpen && <BroadcastModal zones={zones} onClose={() => setIsBroadcastModalOpen(false)} />}
             
             {/* Add Zone Modal */}
             {isZoneModalOpen && (
@@ -557,13 +643,6 @@ const DashboardPage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => setIsBroadcastModalOpen(true)} 
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors"
-                    >
-                        <MegaphoneIcon className="w-4 h-4"/> Broadcast
-                    </button>
-                    
                     <button 
                         onClick={toggleManageSpots} 
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -626,42 +705,51 @@ const DashboardPage = () => {
                 </div>
             </header>
 
-            <div className="flex-1 p-6 overflow-hidden flex flex-col gap-6">
-                <div className="w-full p-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex gap-4 items-center">
-                    <div className="flex-1">
-                        <h2 className="text-lg font-bold text-black dark:text-white">Notifikasi Event</h2>
-                        <div className="flex flex-col gap-2 mt-2">
-                            {notifications.length === 0 ? (
-                                <span className="text-gray-400 dark:text-slate-400 text-sm">Belum ada notifikasi.</span>
-                            ) : notifications.slice(0,5).map((notif) => (
-                                <div key={notif.id} className="bg-gray-100 dark:bg-slate-800 rounded-lg px-3 py-2 text-black dark:text-white text-sm border-l-4 border-indigo-500">
-                                    <div className="font-bold">{notif.title}</div>
-                                    <div>{notif.message}</div>
-                                    <div className="text-xs text-gray-400 dark:text-slate-400">{notif.createdAt ? new Date(notif.createdAt).toLocaleString() : ''}</div>
+            <div className="flex-1 p-6 overflow-hidden flex gap-6">
+                {/* Main Content - Map + Stats */}
+                <div className="flex-1 flex flex-col gap-4 min-w-0">
+                    {/* Compact Stats Row */}
+                    <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+                        {[
+                            { label: 'Participants', val: activeParticipantsCount, icon: UsersIcon, color: 'text-blue-600 dark:text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/10' },
+                            { label: 'Open Incidents', val: openIncidentsCount, icon: ExclamationTriangleIcon, color: 'text-red-600 dark:text-red-500', bg: 'bg-red-100 dark:bg-red-500/10' },
+                            { label: 'Density', val: 'Moderate', icon: SignalIcon, color: 'text-orange-600 dark:text-orange-500', bg: 'bg-orange-100 dark:bg-orange-500/10' },
+                            { label: 'Active Zones', val: zones.length, icon: Square3Stack3DIcon, color: 'text-purple-600 dark:text-purple-500', bg: 'bg-purple-100 dark:bg-purple-500/10' }
+                        ].map((stat, idx) => (
+                            <div key={idx} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <div className="text-gray-500 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">{stat.label}</div>
+                                    <div className="text-xl font-bold text-black dark:text-white">{stat.val}</div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0">
-                    {[{ label: 'Participants', val: activeParticipantsCount, icon: UsersIcon, color: 'text-blue-600 dark:text-blue-500', bg: 'bg-blue-100 dark:bg-blue-500/10' },
-                    { label: 'Open Incidents', val: openIncidentsCount, icon: ExclamationTriangleIcon, color: 'text-red-600 dark:text-red-500', bg: 'bg-red-100 dark:bg-red-500/10' },
-                    { label: 'Density', val: 'Moderate', icon: SignalIcon, color: 'text-orange-600 dark:text-orange-500', bg: 'bg-orange-100 dark:bg-orange-500/10' },
-                    { label: 'Active Zones', val: zones.length, icon: Square3Stack3DIcon, color: 'text-purple-600 dark:text-purple-500', bg: 'bg-purple-100 dark:bg-purple-500/10' }
-                    ].map((stat, idx) => (
-                        <div key={idx} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-4 rounded-xl flex items-start justify-between">
-                            <div>
-                                <div className="text-gray-500 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">{stat.label}</div>
-                                <div className="text-2xl font-bold text-black dark:text-white">{stat.val}</div>
+                                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}><stat.icon className="w-4 h-4" /></div>
                             </div>
-                            <div className={`p-2.5 rounded-lg ${stat.bg} ${stat.color}`}><stat.icon className="w-5 h-5" /></div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
 
-                <div className="flex-1 flex gap-6 min-h-0 relative">
-                    <div className="flex-grow bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 relative overflow-hidden flex flex-col">
+                    {/* Collapsible Attendance Overview */}
+                    <div className="flex-shrink-0">
+                        <button
+                            onClick={() => setIsAttendanceExpanded(!isAttendanceExpanded)}
+                            className="w-full flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <CheckIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                <span className="font-bold text-black dark:text-white">Attendance Overview</span>
+                                <span className="text-sm text-gray-500 dark:text-slate-400">
+                                    {participants.filter(p => p.attendanceStatus === 'PRESENT').length}/{participants.length} Present
+                                </span>
+                            </div>
+                            <ChevronDownIcon className={`w-5 h-5 text-gray-500 dark:text-slate-400 transition-transform ${isAttendanceExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isAttendanceExpanded && (
+                            <div className="mt-2">
+                                <AttendanceStatsCard eventId={selectedEventId} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Map */}
+                    <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 relative overflow-hidden">
                         {isManageZonesMode && <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-indigo-600 text-white px-4 py-1.5 rounded-full shadow-lg text-xs font-bold animate-pulse">Drawing Mode Active</div>}
                         {isAddingSpotMode && <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-green-600 text-white px-4 py-1.5 rounded-full shadow-lg text-xs font-bold animate-pulse">Click on Map to Add Spot</div>}
 
@@ -670,7 +758,7 @@ const DashboardPage = () => {
                         : (
                             <>
                                 <MapComponent
-                                    key={JSON.stringify(zones) + JSON.stringify(spots) + isManageZonesMode + isManageSpotsMode}
+                                    key={JSON.stringify(zones) + JSON.stringify(spots) + isManageZonesMode + isManageSpotsMode + isAttendanceExpanded}
                                     ref={mapRef}
                                     center={mapCenter}
                                     participantLocations={filteredParticipants}
@@ -685,7 +773,7 @@ const DashboardPage = () => {
                                     onLocationSelect={handleLocationSelectForSpot}
                                 />
                                 {filteredParticipants.length === 0 && (
-                                    <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-900/90 text-black dark:text-white px-4 py-2 rounded-lg shadow-lg text-left z-20 border border-indigo-600 max-w-xs pointer-events-none" style={{width: 'fit-content'}}>
+                                    <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-900/90 text-black dark:text-white px-4 py-2 rounded-lg shadow-lg text-left z-20 border border-indigo-600 max-w-xs pointer-events-none">
                                         <div className="font-bold text-sm mb-1">Tidak ada peserta yang mengirimkan lokasi</div>
                                         <div className="text-xs text-gray-700 dark:text-slate-300">Pastikan peserta mengupdate lokasi mereka melalui aplikasi.</div>
                                     </div>
@@ -693,37 +781,100 @@ const DashboardPage = () => {
                             </>
                         )}
                     </div>
+                </div>
 
-                    {isManageZonesMode && <ZoneSidebar zones={zones} onDelete={handleDeleteZone} onUpdate={handleUpdateZone} onClose={toggleManageZones} />}
-                    {isManageSpotsMode && <SpotSidebar spots={spots} onDelete={handleDeleteSpot} onUpdate={handleUpdateSpot} onClose={toggleManageSpots} onAddRequest={handleAddSpotRequest} isAddingSpot={isAddingSpotMode} />}
-
-                    {!isManageZonesMode && !isManageSpotsMode && (
-                        <div className="w-96 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl flex flex-col overflow-hidden">
-                            <div className="p-4 border-b border-gray-200 dark:border-slate-800"><h3 className="font-bold text-black dark:text-white">Incident Feed</h3></div>
-                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                <IncidentFeed
-                                    reports={filteredReports}
-                                    onIncidentSelect={(report) => {
-                                        mapRef.current?.flyTo(report.longitude, report.latitude);
-                                        setSelectedIncident(report);
-                                    }}
-                                />
-                                {/* AI Insight for selected incident */}
-                                {selectedIncident && aiInsights.filter(i => i.reportId === selectedIncident.id).length > 0 && (
-                                    <div className="mt-4 p-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-black dark:text-white">
-                                        <h4 className="font-bold mb-2">AI Insight</h4>
-                                        {aiInsights.filter(i => i.reportId === selectedIncident.id).map((insight) => (
-                                            <div key={insight.id} className="mb-2">
-                                                <div className="text-xs text-gray-700 dark:text-slate-300">Model: {insight.meta?.model || 'AI'}</div>
-                                                <div>{insight.aiPayload?.insight || '-'}</div>
+                {/* Right Sidebar - Incident Feed + Notifications */}
+                <div className="w-96 flex flex-col gap-4">
+                    {/* Notifications */}
+                    {notifications.length > 0 && (
+                        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <BellIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                <h3 className="font-bold text-black dark:text-white">Notifikasi Event</h3>
+                                <span className="ml-auto bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                                    {notifications.length}
+                                </span>
+                            </div>
+                            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                {notifications.slice(0, 3).map((notif) => {
+                                    // Determine notification type label, badge, and border color
+                                    const getNotifTypeLabel = (type) => {
+                                        switch(type) {
+                                            case 'REPORT_FEEDBACK': return 'Feedback Report';
+                                            case 'EVENT_UPDATE': return 'Event Update';
+                                            case 'SECURITY_ALERT': return 'Security Alert';
+                                            case 'GENERAL': return 'General';
+                                            default: return 'Notification';
+                                        }
+                                    };
+                                    const getBorderColor = (type) => {
+                                        switch(type) {
+                                            case 'REPORT_FEEDBACK': return 'border-green-500';
+                                            case 'EVENT_UPDATE': return 'border-indigo-500';
+                                            case 'SECURITY_ALERT': return 'border-red-500';
+                                            case 'GENERAL': return 'border-gray-500';
+                                            default: return 'border-indigo-500';
+                                        }
+                                    };
+                                    const getCategoryBadge = (category) => {
+                                        if (!category) return null;
+                                        const colors = {
+                                            SECURITY: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+                                            FACILITY: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+                                            CROWD: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+                                            OTHER: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
+                                        };
+                                        return (
+                                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${colors[category] || colors.OTHER}`}>
+                                                {category}
+                                            </span>
+                                        );
+                                    };
+                                    
+                                    return (
+                                        <div key={notif.id} className={`bg-gray-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm border-l-2 ${getBorderColor(notif.type)}`}>
+                                            <div className="flex items-center justify-between gap-2 mb-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                                                        {getNotifTypeLabel(notif.type)}
+                                                    </span>
+                                                    {notif.category && getCategoryBadge(notif.category)}
+                                                </div>
+                                                {notif.deliveryMethod === 'BROADCAST' && (
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                                        Broadcast
+                                                    </span>
+                                                )}
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            <div className="font-semibold text-black dark:text-white text-xs">{notif.title}</div>
+                                            <div className="text-gray-600 dark:text-slate-400 text-xs line-clamp-2">{notif.message}</div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
+
+                    {/* Incident Feed */}
+                    <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl flex flex-col overflow-hidden">
+                        <div className="p-4 border-b border-gray-200 dark:border-slate-800">
+                            <h3 className="font-bold text-black dark:text-white">Incident Feed</h3>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                            <IncidentFeed
+                                reports={filteredReports}
+                                onIncidentSelect={(report) => {
+                                    mapRef.current?.flyTo(report.longitude, report.latitude);
+                                    setSelectedIncident(report);
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
+
+                {/* Zone/Spot Sidebars */}
+                {isManageZonesMode && <ZoneSidebar zones={zones} onDelete={handleDeleteZone} onUpdate={handleUpdateZone} onClose={toggleManageZones} />}
+                {isManageSpotsMode && <SpotSidebar spots={spots} onDelete={handleDeleteSpot} onUpdate={handleUpdateSpot} onClose={toggleManageSpots} onAddRequest={handleAddSpotRequest} isAddingSpot={isAddingSpotMode} />}
             </div>
         </div>
     );

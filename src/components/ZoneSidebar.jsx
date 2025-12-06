@@ -21,21 +21,38 @@ const ZONE_COLORS = [
 const ZoneSidebar = ({ zones, onDelete, onUpdate, onClose }) => {
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({ name: '', color: '' });
+    const [originalData, setOriginalData] = useState(null);
 
     const startEdit = (zone) => {
         setEditingId(zone.id);
-        setEditForm({ name: zone.name, color: zone.color });
+        const zoneData = { name: zone.name, color: zone.color };
+        setEditForm(zoneData);
+        setOriginalData(zoneData);
     };
 
     const cancelEdit = () => {
         setEditingId(null);
         setEditForm({ name: '', color: '' });
+        setOriginalData(null);
     };
 
     const saveEdit = () => {
-        if (editingId) {
-            onUpdate(editingId, editForm);
-            setEditingId(null);
+        if (editingId && originalData) {
+            const dataToSend = {};
+            
+            // Hanya kirim field yang berubah
+            if (editForm.name !== originalData.name) {
+                dataToSend.name = editForm.name;
+            }
+            if (editForm.color !== originalData.color) {
+                dataToSend.color = editForm.color;
+            }
+            
+            // Kirim update jika ada perubahan
+            if (Object.keys(dataToSend).length > 0) {
+                onUpdate(editingId, dataToSend);
+            }
+            cancelEdit();
         }
     };
 

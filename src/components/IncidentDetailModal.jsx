@@ -16,40 +16,54 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
     const [status, setStatus] = useState(report.status);
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // ...existing code...
+    
+    // Broadcast Modal States
+    const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+    const [broadcastMessage, setBroadcastMessage] = useState('');
+    const [broadcastSeverity, setBroadcastSeverity] = useState('high');
 
     const handleStatusChange = async (newStatus) => {
         try {
             setIsSubmitting(true);
             await api.updateReportStatus(report.id, newStatus, note);
-            // Kirim notifikasi ke pelapor jika ada
-            if (report.reporter?.id) {
-                await api.sendUserNotification({
-                    userId: report.reporter.id,
-                    eventId: report.eventId || report.event_id,
-                    message: note,
-                    title: `Status laporan anda diupdate menjadi ${newStatus.replace('_', ' ')}`,
-                    type: 'EVENT_UPDATE',
-                });
-            }
             setStatus(newStatus);
             if (onUpdate) onUpdate({ ...report, status: newStatus });
         } catch (error) {
             console.error("Failed to update status", error);
+            alert("Failed to update status: " + error.message);
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const openBroadcastModal = () => {
+        // Set default message berdasarkan kategori report
+        const defaultMessages = {
+            SECURITY: `PERINGATAN KEAMANAN: ${report.description.substring(0, 100)}`,
+            FACILITY: `PEMBERITAHUAN FASILITAS: ${report.description.substring(0, 100)}`,
+            CROWD: `PERINGATAN KEPADATAN: ${report.description.substring(0, 100)}`,
+            OTHER: `PENGUMUMAN: ${report.description.substring(0, 100)}`
+        };
+        setBroadcastMessage(defaultMessages[report.category] || `📢 ${report.description.substring(0, 100)}`);
+        setBroadcastSeverity(report.category === 'SECURITY' ? 'high' : 'medium');
+        setIsBroadcastModalOpen(true);
+    };
+
     const handleBroadcast = async () => {
-        if (!confirm("Are you sure you want to broadcast this incident to all participants?")) return;
+        if (!broadcastMessage.trim()) {
+            alert("Pesan broadcast tidak boleh kosong!");
+            return;
+        }
+        
         try {
             setIsSubmitting(true);
-            await api.broadcastReport(report.id, "Security Alert: Incident reported in your area. Please stay clear.", "high");
-            alert("Broadcast sent successfully.");
+            await api.broadcastReport(report.id, broadcastMessage, broadcastSeverity);
+            alert("Broadcast berhasil dikirim ke semua participants!");
+            setIsBroadcastModalOpen(false);
+            if (onUpdate) onUpdate({ ...report, status: 'IN_PROGRESS' });
         } catch (error) {
             console.error("Broadcast failed", error);
-            alert("Failed to send broadcast.");
+            alert("Failed to send broadcast: " + error.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -175,14 +189,14 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                     <div className="grid grid-cols-1 gap-2">
                                         <button
                                             onClick={() => handleStatusChange('IN_PROGRESS')}
-                                            disabled={status === 'IN_PROGRESS' || isSubmitting || !note.trim()}
-                                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : (!note.trim() ? 'bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700')}`}
+                                            disabled={isSubmitting || !note.trim()}
+                                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${!note.trim() ? 'bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
                                         >
                                             <ShieldCheckIcon className="w-4 h-4" /> Update ke Pelapor
                                         </button>
                                         <button
                                             onClick={() => handleStatusChange('RESOLVED')}
-                                            disabled={status !== 'IN_PROGRESS' || status === 'RESOLVED' || isSubmitting}
+                                            disabled={status === 'RESOLVED' || isSubmitting}
                                             className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'RESOLVED' ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600'}`}
                                         >
                                             <CheckCircleIcon className="w-4 h-4" /> Resolve
@@ -193,7 +207,7 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                 <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
                                     <p className="text-xs text-gray-400 dark:text-slate-400 font-medium uppercase mb-2">Emergency</p>
                                     <button 
-                                        onClick={handleBroadcast}
+                                        onClick={openBroadcastModal}
                                         disabled={isSubmitting}
                                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 border border-red-200 dark:border-red-500/50 rounded-lg text-sm font-bold transition-colors"
                                     >
@@ -210,12 +224,116 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                     className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-3 text-sm text-black dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none resize-none h-32"
                                     placeholder="Add notes for the team..."
                                 ></textarea>
-                                {/* Tombol notifikasi ke pelapor dihapus, hanya pakai tombol di atas */}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Broadcast Modal */}
+            {isBroadcastModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-900 border border-red-500/50 rounded-2xl w-full max-w-lg shadow-2xl animate-fadeIn">
+                        <div className="p-6 border-b border-gray-200 dark:border-slate-800">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-red-100 dark:bg-red-500/10 rounded-lg">
+                                    <MegaphoneIcon className="w-6 h-6 text-red-600 dark:text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-black dark:text-white">Broadcast Alert</h3>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">Kirim peringatan ke semua participants</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* Report Info */}
+                            <div className="bg-gray-100 dark:bg-slate-800 rounded-lg p-3 border border-gray-200 dark:border-slate-700">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400">Report Category</span>
+                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
+                                        report.category === 'SECURITY' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                                        report.category === 'FACILITY' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
+                                        report.category === 'CROWD' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                                        'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
+                                    }`}>
+                                        {report.category}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-700 dark:text-slate-300 line-clamp-2">{report.description}</p>
+                            </div>
+
+                            {/* Broadcast Message */}
+                            <div>
+                                <label className="block text-sm font-medium text-black dark:text-white mb-2">
+                                    Pesan Broadcast <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    value={broadcastMessage}
+                                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                                    className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-3 text-sm text-black dark:text-white focus:ring-2 focus:ring-red-500 outline-none resize-none h-32"
+                                    placeholder="Tulis pesan peringatan untuk semua participants..."
+                                />
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                    {broadcastMessage.length} / 500 karakter
+                                </p>
+                            </div>
+
+                            {/* Severity Level */}
+                            <div>
+                                <label className="block text-sm font-medium text-black dark:text-white mb-2">
+                                    Tingkat Urgency
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['low', 'medium', 'high'].map((level) => (
+                                        <button
+                                            key={level}
+                                            onClick={() => setBroadcastSeverity(level)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                broadcastSeverity === level
+                                                    ? level === 'high' ? 'bg-red-600 text-white border-2 border-red-700' :
+                                                      level === 'medium' ? 'bg-orange-600 text-white border-2 border-orange-700' :
+                                                      'bg-yellow-600 text-white border-2 border-yellow-700'
+                                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                            }`}
+                                        >
+                                            {level === 'high' ? '🔴 High' : level === 'medium' ? '🟠 Medium' : '🟡 Low'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Warning */}
+                            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3">
+                                <p className="text-xs text-red-700 dark:text-red-400">
+                                    ⚠️ Pesan ini akan dikirim ke <strong>SEMUA participants</strong> event ini. Pastikan pesan sudah benar sebelum mengirim.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-gray-200 dark:border-slate-800 flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsBroadcastModalOpen(false)}
+                                disabled={isSubmitting}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:text-black dark:hover:text-white rounded-lg transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleBroadcast}
+                                disabled={isSubmitting || !broadcastMessage.trim()}
+                                className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+                                    isSubmitting || !broadcastMessage.trim()
+                                        ? 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700 text-white'
+                                }`}
+                            >
+                                {isSubmitting ? 'Mengirim...' : '📢 Kirim Broadcast'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

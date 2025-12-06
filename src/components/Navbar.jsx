@@ -8,7 +8,8 @@ import {
     ArrowRightOnRectangleIcon,
     MapPinIcon,
     Cog6ToothIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    BellIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -19,6 +20,7 @@ const navigation = [
     { name: 'Heatmap', href: '/heatmap', icon: MapPinIcon },
     { name: 'Laporan', href: '/reports', icon: ExclamationTriangleIcon },
     { name: 'Analytics', href: '/statistics', icon: ChartBarIcon },
+    { name: 'Notifikasi', href: '/notifications', icon: BellIcon },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 

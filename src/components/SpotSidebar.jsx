@@ -13,25 +13,48 @@ const SPOT_TYPES = Object.keys(SpotType);
 
 const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest, isAddingSpot }) => {
     const [editingId, setEditingId] = useState(null);
-    const [editForm, setEditForm] = useState({ name: '', description: '', type: 'OTHER', customType: '' });
+    const [editForm, setEditForm] = useState({ name: '', type: 'OTHER', customType: '' });
+    const [originalData, setOriginalData] = useState(null);
 
     const startEdit = (spot) => {
         setEditingId(spot.id);
-        setEditForm({
+        const spotData = {
             name: spot.name,
-            description: spot.description || '',
             type: spot.type,
             customType: spot.customType || ''
-        });
+        };
+        setEditForm(spotData);
+        setOriginalData(spotData); // Simpan data asli untuk perbandingan
     };
 
     const cancelEdit = () => {
         setEditingId(null);
+        setOriginalData(null);
     };
 
     const saveEdit = () => {
-        if (editingId) {
-            onUpdate(editingId, editForm);
+        if (editingId && originalData) {
+            const dataToSend = {};
+            
+            // Hanya kirim field yang berubah (kecuali name yang wajib)
+            if (editForm.name !== originalData.name) {
+                dataToSend.name = editForm.name;
+            }
+            if (editForm.type !== originalData.type) {
+                dataToSend.type = editForm.type;
+            }
+            
+            // Handle customType
+            if (editForm.type === 'OTHER') {
+                dataToSend.customType = editForm.customType;
+            } else if (originalData.type === 'OTHER' && editForm.type !== 'OTHER') {
+                dataToSend.customType = null; // Hapus customType
+            }
+            
+            // Kirim update jika ada perubahan
+            if (Object.keys(dataToSend).length > 0) {
+                onUpdate(editingId, dataToSend);
+            }
             cancelEdit();
         }
     };
@@ -70,8 +93,7 @@ const SpotSidebar = ({ spots, onDelete, onUpdate, onClose, onAddRequest, isAddin
                         <div key={spot.id} className="bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg p-3 hover:border-gray-300 dark:hover:border-slate-600 transition-all">
                             {editingId === spot.id ? (
                                 <div className="space-y-3">
-                                    <input type="text" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-black dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none" />
-                                    <textarea value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-black dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none" rows="2" placeholder="Description..."></textarea>
+                                    <input type="text" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-black dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Spot name" />
                                     <select value={editForm.type} onChange={(e) => setEditForm({...editForm, type: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm text-black dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none">
                                         {SPOT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>

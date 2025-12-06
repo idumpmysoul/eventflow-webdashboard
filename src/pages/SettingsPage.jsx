@@ -164,7 +164,7 @@ const SettingsPage = () => {
                     </h2>
                     <p className="text-red-500 dark:text-red-300/80 text-sm mb-4">This action is irreversible. It will permanently delete the event and all its data.</p>
                     <div className="space-y-4">
-                        <label className="block text-sm font-medium text-red-700 dark:text-slate-300 mb-2">To delete this event, type \"DELETE\" below:</label>
+                        <label className="block text-sm font-medium text-red-700 dark:text-slate-300 mb-2">To delete this event, type "DELETE" below:</label>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                             <input
                                 type="text"

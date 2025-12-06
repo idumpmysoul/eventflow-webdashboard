@@ -1,4 +1,5 @@
 
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const getAuthToken = () => localStorage.getItem('authToken');
@@ -116,13 +117,23 @@ const api = {
   },
 
 
-  // ============ USER NOTIFICATION (INDIVIDUAL) ============
-  async sendUserNotification({ userId, eventId, message, title, type = 'GENERAL' }) {
-    // POST ke /user-notifications
-    const res = await fetch(`${API_BASE}/user-notifications`, {
+  // ============ CUSTOM NOTIFICATION TO PARTICIPANT ============
+  async sendUserNotification({ eventId, participantId, title, message, type = 'GENERAL' }) {
+    // POST ke /notifications/custom/:eventId
+    const res = await fetch(`${API_BASE}/notifications/custom/${eventId}`, {
       method: 'POST',
       headers: headers(true),
-      body: JSON.stringify({ userId, eventId, message, title, type }),
+      body: JSON.stringify({ participantId, title, message, type }),
+    });
+    return handleResponse(res);
+  },
+
+  // ============ EVENT NOTIFICATIONS ============
+  async getEventNotifications(eventId) {
+    // GET /notifications/:id
+    const res = await fetch(`${API_BASE}/notifications/${eventId}`, {
+      method: 'GET',
+      headers: headers(true),
     });
     return handleResponse(res);
   },
@@ -155,6 +166,16 @@ const api = {
     return handleResponse(res);
   },
 
+  async updateVirtualArea(areaId, updateData) {
+    // Match Backend: PATCH /virtual-area/virtual-areas/:areaId
+    const res = await fetch(`${API_BASE}/virtual-area/update/${areaId}`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify(updateData),
+    });
+    return handleResponse(res);
+  },
+
   async deleteVirtualArea(areaId) {
     // Match Backend: DELETE /virtual-area/:areaId
     const res = await fetch(`${API_BASE}/virtual-area/${areaId}`, {
@@ -166,8 +187,30 @@ const api = {
 
   // ============ PARTICIPANT LOCATIONS ============
   async getParticipantLocations(eventId) {
+    // ORGANIZER: Get all participant locations in event
     // Match Backend: GET /locations/:eventId
     const res = await fetch(`${API_BASE}/locations/${eventId}`, {
+      method: 'GET',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  async updateParticipantLocation(eventId, latitude, longitude) {
+    // PARTICIPANT: Update own location in event (with geofence detection)
+    // Match Backend: POST /locations/:eventId
+    const res = await fetch(`${API_BASE}/locations/${eventId}`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify({ latitude, longitude })
+    });
+    return handleResponse(res);
+  },
+
+  async getMyLocation(eventId) {
+    // PARTICIPANT: Get own current location in event
+    // Match Backend: GET /locations/:eventId/me
+    const res = await fetch(`${API_BASE}/locations/${eventId}/me`, {
       method: 'GET',
       headers: headers(true),
     });
@@ -187,7 +230,7 @@ const api = {
   // ============ REPORTS ============
   async getReports(eventId) {
      // Match Backend: GET /reports/:id/my-reports
-     const res = await fetch(`${API_BASE}/reports/${eventId}/my-reports`, {
+    const res = await fetch(`${API_BASE}/reports/${eventId}/my-reports`, {
         method: 'GET',
         headers: headers(true),
       });
@@ -240,14 +283,14 @@ const api = {
   },
 
   async updateImportantSpot(spotId, spotData) {
-    const res = await fetch(`${API_BASE}/important-spots/update/${spotId}`, {
-      method: 'PUT',
+    const res = await fetch(`${API_BASE}/important-spots/${spotId}`, {
+      method: 'PATCH',
       headers: headers(true),
       body: JSON.stringify(spotData)
     });
     return handleResponse(res);
   },
-
+  
   async deleteImportantSpot(spotId) {
     const res = await fetch(`${API_BASE}/important-spots/${spotId}`, {
       method: 'DELETE',
@@ -257,11 +300,14 @@ const api = {
   },
 
   // ============ NOTIFICATIONS / BROADCAST ============
-  async sendBroadcast(broadcastData) {
+  async sendBroadcast({ eventId, title, message, type = 'GENERAL' }) {
+    // Backend: POST /notifications/broadcast
+    // Expects: eventId, title, message, type
+    // Note: category field hanya untuk report-related notifications (auto-set by system)
     const res = await fetch(`${API_BASE}/notifications/broadcast`, {
       method: 'POST',
       headers: headers(true),
-      body: JSON.stringify(broadcastData)
+      body: JSON.stringify({ eventId, title, message, type })
     });
     return handleResponse(res);
   },
@@ -270,6 +316,16 @@ const api = {
     const res = await fetch(`${API_BASE}/reports-ai/report/${reportId}`, {
       method: 'GET',
       headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  // ============ ATTENDANCE SYSTEM ============
+  async updateParticipantAttendance(eventId, userId, attendanceStatus) {
+    const res = await fetch(`${API_BASE}/event-participants/${eventId}/${userId}/attendance`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify({ attendanceStatus })
     });
     return handleResponse(res);
   },

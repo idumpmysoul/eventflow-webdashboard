@@ -14,6 +14,7 @@ import HeatmapPage from './pages/HeatmapPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import OrganizerReportPage from './pages/OrganizerReportPage.jsx';
+import NotificationPage from './pages/NotificationPage.jsx';
 
 function AppRoutes() {
   const { isAuthenticated, loading, selectedEventId } = useAuth();
@@ -60,6 +61,7 @@ function AppRoutes() {
         <Route path="reports" element={<OrganizerReportPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="notifications" element={<NotificationPage />} />
       </Route>
 
       {/* Redirect unknown routes */}
