@@ -15,21 +15,21 @@ const AttendanceStatsCard = ({ eventId }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const calculateStats = (participants) => {
+    const calculateStatsManually = (participants) => {
         const totalParticipants = participants.length;
         const present = participants.filter(p => p.attendanceStatus === 'PRESENT').length;
         const absent = participants.filter(p => p.attendanceStatus === 'ABSENT').length;
         const pending = participants.filter(p => !p.attendanceStatus || p.attendanceStatus === 'PENDING').length;
         const attendanceRate = totalParticipants > 0
-            ? Math.round((present / totalParticipants) * 100) 
-            : 0;
+            ? ((present / totalParticipants) * 100).toFixed(2)
+            : '0.00';
 
         return {
             totalParticipants,
             present,
             absent,
             pending,
-            attendanceRate
+            attendanceRate: parseFloat(attendanceRate)
         };
     };
 
@@ -38,12 +38,26 @@ const AttendanceStatsCard = ({ eventId }) => {
             setLoading(true);
             setError(null);
             
-            // Fetch participants and calculate stats manually
-            const participants = await api.getEventParticipants(eventId);
-            const calculatedStats = calculateStats(participants);
-            
-            console.log('[AttendanceStatsCard] Calculated stats:', calculatedStats);
-            setStats(calculatedStats);
+            // Try backend endpoint first
+            try {
+                const response = await api.getAttendanceStatistics(eventId);
+                console.log('[AttendanceStatsCard] Using backend endpoint:', response);
+                
+                setStats({
+                    totalParticipants: response.totalParticipants,
+                    present: response.present,
+                    absent: response.absent,
+                    pending: response.pending,
+                    attendanceRate: parseFloat(response.attendanceRate)
+                });
+            } catch (backendError) {
+                // Fallback: Calculate manually from participants list
+                console.warn('[AttendanceStatsCard] Backend endpoint failed, using fallback calculation:', backendError.message);
+                const participants = await api.getEventParticipants(eventId);
+                const calculatedStats = calculateStatsManually(participants);
+                console.log('[AttendanceStatsCard] Using fallback calculation:', calculatedStats);
+                setStats(calculatedStats);
+            }
         } catch (error) {
             console.error('[AttendanceStatsCard] Failed to fetch:', error);
             setError(error.message);

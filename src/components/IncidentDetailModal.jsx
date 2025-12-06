@@ -7,7 +7,7 @@ import {
     ClockIcon,
     ChatBubbleLeftRightIcon,
     ShieldCheckIcon,
-    MegaphoneIcon,
+    SpeakerWaveIcon,
     CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import api from '../services/api';
@@ -211,7 +211,7 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                         disabled={isSubmitting}
                                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 border border-red-200 dark:border-red-500/50 rounded-lg text-sm font-bold transition-colors"
                                     >
-                                        <MegaphoneIcon className="w-4 h-4" /> Broadcast Alert
+                                        <SpeakerWaveIcon className="w-5 h-5" /> Broadcast Alert
                                     </button>
                                 </div>
                             </div>
@@ -236,8 +236,8 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                     <div className="bg-white dark:bg-slate-900 border border-red-500/50 rounded-2xl w-full max-w-lg shadow-2xl animate-fadeIn">
                         <div className="p-6 border-b border-gray-200 dark:border-slate-800">
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-red-100 dark:bg-red-500/10 rounded-lg">
-                                    <MegaphoneIcon className="w-6 h-6 text-red-600 dark:text-red-500" />
+                                <div className="p-3 bg-gradient-to-br from-red-100 to-red-50 dark:from-red-500/20 dark:to-red-500/10 rounded-xl shadow-sm">
+                                    <SpeakerWaveIcon className="w-7 h-7 text-red-600 dark:text-red-500" />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-black dark:text-white">Broadcast Alert</h3>
@@ -289,7 +289,7 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                         <button
                                             key={level}
                                             onClick={() => setBroadcastSeverity(level)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                                 broadcastSeverity === level
                                                     ? level === 'high' ? 'bg-red-600 text-white border-2 border-red-700' :
                                                       level === 'medium' ? 'bg-orange-600 text-white border-2 border-orange-700' :
@@ -297,7 +297,12 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                                     : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700'
                                             }`}
                                         >
-                                            {level === 'high' ? '🔴 High' : level === 'medium' ? '🟠 Medium' : '🟡 Low'}
+                                            <span className={`w-2 h-2 rounded-full ${
+                                                level === 'high' ? 'bg-red-200' :
+                                                level === 'medium' ? 'bg-orange-200' :
+                                                'bg-yellow-200'
+                                            }`}></span>
+                                            {level === 'high' ? 'High' : level === 'medium' ? 'Medium' : 'Low'}
                                         </button>
                                     ))}
                                 </div>
@@ -305,8 +310,11 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
 
                             {/* Warning */}
                             <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3">
-                                <p className="text-xs text-red-700 dark:text-red-400">
-                                    ⚠️ Pesan ini akan dikirim ke <strong>SEMUA participants</strong> event ini. Pastikan pesan sudah benar sebelum mengirim.
+                                <p className="text-xs text-red-700 dark:text-red-400 flex items-start gap-2">
+                                    <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                                    </svg>
+                                    <span>Pesan ini akan dikirim ke <strong>SEMUA participants</strong> event ini. Pastikan pesan sudah benar sebelum mengirim.</span>
                                 </p>
                             </div>
                         </div>
@@ -322,13 +330,26 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                             <button
                                 onClick={handleBroadcast}
                                 disabled={isSubmitting || !broadcastMessage.trim()}
-                                className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+                                className={`flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-lg transition-all ${
                                     isSubmitting || !broadcastMessage.trim()
                                         ? 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
                                         : 'bg-red-600 hover:bg-red-700 text-white'
                                 }`}
                             >
-                                {isSubmitting ? 'Mengirim...' : '📢 Kirim Broadcast'}
+                                {isSubmitting ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Mengirim...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <SpeakerWaveIcon className="w-4 h-4" />
+                                        <span>Kirim Broadcast</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

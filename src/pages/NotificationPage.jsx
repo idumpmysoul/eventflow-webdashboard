@@ -86,8 +86,11 @@ function NotificationPage() {
       if (notif.deliveryMethod !== 'INDIVIDUAL') {
         return false;
       }
-      const participantName = notif.receiver?.name?.toLowerCase() || '';
-      if (!participantName.includes(participantFilter.toLowerCase())) {
+      // Cek receiver dari field langsung atau dari userNotifications array
+      const receiverName = notif.receiver?.name 
+        || (notif.userNotifications?.[0]?.user?.name) 
+        || '';
+      if (!receiverName.toLowerCase().includes(participantFilter.toLowerCase())) {
         return false;
       }
     }
@@ -102,21 +105,35 @@ function NotificationPage() {
 
     // 5. Filter by Sender/Receiver
     if (senderReceiverFilter === 'SENT') {
-      // Notifikasi yang dikirim oleh user ini
-      // Untuk organizer: notifikasi yang dibuat oleh organizer (REPORT_FEEDBACK updates, manual notifications)
-      // Cek apakah user adalah receiver (jika INDIVIDUAL) atau bukan
-      if (notif.deliveryMethod === 'INDIVIDUAL' && notif.receiver?.id === user?.id) {
-        return false; // Ini diterima, bukan dikirim
+      // Cek apakah user ini yang membuat notifikasi
+      // Gunakan createdBy dari backend (sudah include di response)
+      if (notif.createdBy && notif.createdBy.id === user?.id) {
+        return true; // User ini yang kirim
       }
-      // Untuk broadcast, anggap dikirim jika user adalah organizer
-      if (notif.deliveryMethod === 'BROADCAST' && user?.role !== 'organizer') {
-        return false;
+      // Fallback jika createdBy tidak ada (untuk backward compatibility)
+      if (user?.role === 'organizer') {
+        if (notif.deliveryMethod === 'INDIVIDUAL') {
+          const receiverId = notif.receiver?.id 
+            || notif.userNotifications?.[0]?.user?.id
+            || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
+          
+          if (receiverId === user?.id) {
+            return false; // Ini diterima organizer, bukan dikirim
+          }
+          return true;
+        }
+        return true; // Broadcast
       }
+      return false; // Participant tidak bisa kirim
     } else if (senderReceiverFilter === 'RECEIVED') {
       // Notifikasi yang diterima oleh user ini
       if (notif.deliveryMethod === 'INDIVIDUAL') {
         // Individual: harus user adalah receiver
-        if (notif.receiver?.id !== user?.id) {
+        const receiverId = notif.receiver?.id 
+          || notif.userNotifications?.[0]?.user?.id
+          || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
+        
+        if (receiverId !== user?.id) {
           return false;
         }
       } else if (notif.deliveryMethod === 'BROADCAST') {
@@ -415,9 +432,9 @@ function NotificationPage() {
                 >
                   <option value="ALL">Semua Notifikasi</option>
                   <option value="SENT">
-                    {user?.role === 'organizer' ? '↑ Saya Kirim' : '↑ Saya Laporkan'}
+                    {user?.role === 'organizer' ? 'Saya Kirim' : 'Saya Laporkan'}
                   </option>
-                  <option value="RECEIVED">↓ Saya Terima</option>
+                  <option value="RECEIVED">Saya Terima</option>
                 </select>
                 {senderReceiverFilter !== 'ALL' && (
                   <p className="text-xs text-gray-500 dark:text-slate-500 mt-1 flex items-center gap-1">
@@ -443,8 +460,8 @@ function NotificationPage() {
                 )}
               </div>
 
-              {/* Filter by Participant Name - Only for INDIVIDUAL */}
-              {deliveryMethodFilter === 'INDIVIDUAL' && (
+              {/* Filter by Participant Name - Only show when SENT filter active */}
+              {senderReceiverFilter === 'SENT' && (
                 <div>
                   <label className="block text-xs font-semibold mb-1.5 text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                     Cari Penerima
@@ -454,9 +471,21 @@ function NotificationPage() {
                     value={participantFilter}
                     onChange={e => setParticipantFilter(e.target.value)}
                     placeholder="Nama peserta..."
-                    className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500"
+                    disabled={deliveryMethodFilter === 'BROADCAST'}
+                    className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Filter notifikasi individual berdasarkan nama penerima</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-500 mt-1 flex items-start gap-1">
+                    {deliveryMethodFilter === 'BROADCAST' ? (
+                      <>
+                        <svg className="w-3 h-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                        </svg>
+                        <span>Filter ini tidak tersedia untuk Broadcast</span>
+                      </>
+                    ) : (
+                      <span>Filter notifikasi individual berdasarkan nama penerima</span>
+                    )}
+                  </p>
                 </div>
               )}
 
@@ -592,12 +621,20 @@ function NotificationPage() {
                   <div className="mt-auto pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500">
                      <div className="flex items-center gap-2">
                         {/* Show receiver only for INDIVIDUAL deliveryMethod */}
-                        {notif.deliveryMethod === 'INDIVIDUAL' && notif.receiver && (
+                        {notif.deliveryMethod === 'INDIVIDUAL' && (
                           <div className="flex items-center gap-1" title="Penerima">
-                             <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
-                                {notif.receiver.name?.[0] || 'R'}
-                             </div>
-                             <span className="truncate max-w-[120px]">{notif.receiver.name}</span>
+                             {(() => {
+                               const receiver = notif.receiver || notif.userNotifications?.[0]?.user;
+                               if (!receiver) return null;
+                               return (
+                                 <>
+                                   <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
+                                      {receiver.name?.[0] || 'R'}
+                                   </div>
+                                   <span className="truncate max-w-[120px]">{receiver.name}</span>
+                                 </>
+                               );
+                             })()}
                           </div>
                         )}
                         

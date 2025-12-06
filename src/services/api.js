@@ -321,6 +321,14 @@ const api = {
   },
 
   // ============ ATTENDANCE SYSTEM ============
+  async getAttendanceStatistics(eventId) {
+    const res = await fetch(`${API_BASE}/event-participants/${eventId}/attendance-stats`, {
+      method: 'GET',
+      headers: headers(true)
+    });
+    return handleResponse(res);
+  },
+
   async updateParticipantAttendance(eventId, userId, attendanceStatus) {
     const res = await fetch(`${API_BASE}/event-participants/${eventId}/${userId}/attendance`, {
       method: 'PATCH',
