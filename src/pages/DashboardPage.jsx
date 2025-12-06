@@ -52,7 +52,8 @@ const DashboardPage = () => {
     const [participantLocations, setParticipantLocations] = useState([]);
     const [zones, setZones] = useState([]);
     const [spots, setSpots] = useState([]);
-    const [notifications, setNotifications] = useState([]); // <-- Notifikasi event
+    const [notifications, setNotifications] = useState([]); // <-- Toast notifications (auto-hide)
+    const [unreadNotifications, setUnreadNotifications] = useState([]); // <-- Persistent unread notifications
     const [aiInsights, setAiInsights] = useState([]); // <-- Insight AI dari report
     const [participants, setParticipants] = useState([]); // All event participants
     
@@ -64,6 +65,7 @@ const DashboardPage = () => {
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
     const [isAttendanceExpanded, setIsAttendanceExpanded] = useState(false);
+    const [isIncidentSidebarOpen, setIsIncidentSidebarOpen] = useState(true); // Incident sidebar toggle
     
     // Zone Management States
     const [isManageZonesMode, setIsManageZonesMode] = useState(false);
@@ -77,6 +79,9 @@ const DashboardPage = () => {
     const [isAddingSpotMode, setIsAddingSpotMode] = useState(false);
     const [isSpotModalOpen, setIsSpotModalOpen] = useState(false);
     const [newSpotData, setNewSpotData] = useState({ name: '', type: 'OTHER', latitude: null, longitude: null });
+    
+    // Map remount key - hanya berubah saat zones/spots data berubah
+    const [mapKey, setMapKey] = useState(0);
 
     const mapRef = useRef(null);
     const dataLoadedRef = useRef(false);
@@ -193,6 +198,7 @@ const DashboardPage = () => {
                                 setParticipantLocations(locationsResponse);
                                 setZones(zonesResponse);
                                 setSpots(spotsResponse || []);
+                                setMapKey(prev => prev + 1); // Force map remount after data load
                                 // Ambil AI Insight untuk semua report
                                 if (Array.isArray(reportsResponse)) {
                                     let allInsights = [];
@@ -228,31 +234,143 @@ const DashboardPage = () => {
             }
         };
         fetchParticipants();
+        
+        // Fetch unread notifications for organizer
+        const fetchUnreadNotifications = async () => {
+            try {
+                const response = await api.getUnreadNotifications();
+                if (!isMountedRef.current) return;
+                // Response: { unreadNotifications: [{notificationId, userId, isRead, ...}] }
+                const unreadData = response?.unreadNotifications || [];
+                
+                // Fetch full notification details for each unread notification
+                const notificationIds = [...new Set(unreadData.map(un => un.notificationId))];
+                const allEventNotifications = await api.getEventNotifications(selectedEventId);
+                
+                // Filter to only unread notifications
+                const unreadNotifs = allEventNotifications.filter(notif => 
+                    notificationIds.includes(notif.id)
+                );
+                
+                setUnreadNotifications(unreadNotifs);
+            } catch (err) {
+                console.error('Failed to fetch unread notifications:', err);
+                setUnreadNotifications([]);
+            }
+        };
+        fetchUnreadNotifications();
     }, [selectedEventId]);
 
     // Socket Connection
     useEffect(() => {
         if (usingMockData || !selectedEventId || loading) return;
 
+        console.log('[Socket] Initializing socket connection...');
+        console.log('[Socket] Selected Event ID:', selectedEventId);
+        
         socket.connect();
+        
+        // Verify connection
+        socket.on('connect', () => {
+            console.log('[Socket] Connected successfully, Socket ID:', socket.id);
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('[Socket] Disconnected');
+        });
+        
+        socket.on('error', (error) => {
+            console.error('[Socket] Error:', error);
+        });
+        
+        // Join event room
         socket.emit('joinEventRoom', selectedEventId);
+        console.log('[Socket] Emitted joinEventRoom for:', selectedEventId);
 
-        socket.on('locationUpdate', (newLocation) => {
+        // 🗺️ Listen for LOCATION updates (real-time map)
+        socket.on('locationUpdate', (payload) => {
+            console.log('🗺️ [Socket] Location update received:', payload);
+            console.log('🗺️ [Socket] Timestamp:', new Date().toISOString());
+            
             setParticipantLocations((prevLocations) => {
-                if (!prevLocations) return [newLocation];
-                const existingIndex = prevLocations.findIndex((p) => p.userId === newLocation.userId);
+                console.log('🗺️ [Socket] Previous locations count:', prevLocations?.length || 0);
+                
+                if (!prevLocations) {
+                    console.log('🗺️ [Socket] No previous locations, adding first location');
+                    return [{
+                        userId: payload.userId,
+                        latitude: payload.latitude,
+                        longitude: payload.longitude,
+                        lastGeofenceStatus: payload.geofenceStatus, // MapComponent uses lastGeofenceStatus
+                        lastUpdatedAt: payload.updatedAt, // MapComponent uses lastUpdatedAt
+                        user: payload.user,
+                        name: payload.user?.name
+                    }];
+                }
+                
+                // Find existing participant by userId
+                const existingIndex = prevLocations.findIndex(
+                    (p) => p.userId === payload.userId
+                );
+                
+                console.log('🗺️ [Socket] Existing participant index:', existingIndex);
+                
                 if (existingIndex > -1) {
+                    // Update existing location with new coordinates and status
                     const updatedLocations = [...prevLocations];
-                    updatedLocations[existingIndex] = { ...updatedLocations[existingIndex], ...newLocation };
+                    const oldData = updatedLocations[existingIndex];
+                    
+                    updatedLocations[existingIndex] = {
+                        ...oldData,
+                        latitude: payload.latitude,
+                        longitude: payload.longitude,
+                        lastGeofenceStatus: payload.geofenceStatus, // MapComponent uses lastGeofenceStatus
+                        lastUpdatedAt: payload.updatedAt, // MapComponent uses lastUpdatedAt
+                        user: payload.user || oldData.user,
+                        name: payload.user?.name || oldData.name
+                    };
+                    
+                    console.log('🗺️ [Socket] ✅ Updated location from:', 
+                        `${oldData.latitude.toFixed(4)}, ${oldData.longitude.toFixed(4)}`,
+                        'to:',
+                        `${payload.latitude.toFixed(4)}, ${payload.longitude.toFixed(4)}`
+                    );
+                    console.log('🗺️ [Socket] Status:', payload.geofenceStatus);
+                    
                     return updatedLocations;
                 }
-                return [...prevLocations, newLocation];
+                
+                // Add new participant location
+                console.log('🗺️ [Socket] Adding new participant location:', payload.user?.name || payload.userId);
+                return [...prevLocations, {
+                    userId: payload.userId,
+                    latitude: payload.latitude,
+                    longitude: payload.longitude,
+                    lastGeofenceStatus: payload.geofenceStatus,
+                    lastUpdatedAt: payload.updatedAt,
+                    user: payload.user,
+                    name: payload.user?.name
+                }];
             });
         });
 
         // --- Listen for broadcast notification ---
         socket.on('notification', (notif) => {
+            // 1. Show as toast (auto-hide after 5 seconds)
             setNotifications((prev) => [notif, ...prev]);
+            setTimeout(() => {
+                setNotifications((prev) => prev.filter(n => n.id !== notif.id));
+            }, 5000); // Toast hilang setelah 5 detik
+            
+            // 2. Add to unread notifications (persistent)
+            setUnreadNotifications((prev) => {
+                // Avoid duplicates
+                if (prev.some(n => n.id === notif.id)) return prev;
+                return [notif, ...prev];
+            });
+            
+            // 3. Show browser notification toast
+            notify(`📬 ${notif.title}`, 'info');
         });
 
         // --- Listen for live report (laporan baru) ---
@@ -326,13 +444,18 @@ const DashboardPage = () => {
         });
 
         return () => {
+            console.log('[Socket] Cleaning up socket listeners...');
             socket.emit('leaveEventRoom', selectedEventId);
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.off('error');
             socket.off('locationUpdate');
             socket.off('liveReport');
             socket.off('notification');
             socket.off('geofenceEvent');
             socket.off('attendanceUpdate');
             socket.disconnect();
+            console.log('[Socket] Socket disconnected and listeners removed');
         };
     }, [selectedEventId, usingMockData, loading, notify]);
 
@@ -383,6 +506,36 @@ const DashboardPage = () => {
         return () => clearTimeout(timer);
     }, [isAttendanceExpanded]);
 
+    // Resize map when incident sidebar opens/closes
+    useEffect(() => {
+        console.log('[Sidebar Toggle] isIncidentSidebarOpen changed to:', isIncidentSidebarOpen);
+        console.log('[Sidebar Toggle] Current zones count:', zones?.length || 0);
+        console.log('[Sidebar Toggle] Current spots count:', spots?.length || 0);
+        console.log('[Sidebar Toggle] Current participants count:', participantLocations?.length || 0);
+        
+        // Wait for CSS transition to complete, then resize map
+        const timer = setTimeout(() => {
+            console.log('[Sidebar Toggle] Starting map resize...');
+            if (mapRef.current?.resize) {
+                mapRef.current.resize();
+                console.log('[Sidebar Toggle] Map resized successfully');
+                
+                // Force participant locations re-render by creating new array reference
+                setParticipantLocations(prev => {
+                    console.log('[Sidebar Toggle] Force re-render participant locations');
+                    return [...prev];
+                });
+            } else {
+                console.warn('[Sidebar Toggle] mapRef.current.resize not available');
+            }
+        }, 350); // Match CSS transition duration (300ms + buffer)
+        
+        return () => {
+            console.log('[Sidebar Toggle] Cleanup - clearing timer');
+            clearTimeout(timer);
+        };
+    }, [isIncidentSidebarOpen]);
+
     const toggleManageZones = async () => {
         const nextState = !isManageZonesMode;
         setIsManageZonesMode(nextState);
@@ -423,6 +576,7 @@ const DashboardPage = () => {
             const spotsResponse = await api.getImportantSpots(selectedEventId);
             console.log('[Refresh] Spots dari backend:', spotsResponse);
             setSpots(Array.isArray(spotsResponse) ? [...spotsResponse] : []);
+            setMapKey(prev => prev + 1); // Force map remount after refresh
             // Tambahkan refresh lain jika perlu (misal participants, reports, dsb)
         }
     }
@@ -453,6 +607,7 @@ const DashboardPage = () => {
             // Fetch zones again to get latest data from backend
             const zonesResponse = await api.getVirtualAreas(selectedEventId);
             setZones(zonesResponse);
+            setMapKey(prev => prev + 1); // Force map remount after zone created
             closeZoneModal();
         } catch (err) {
             console.error("Failed to save zone:", err);
@@ -465,6 +620,7 @@ const DashboardPage = () => {
         try {
             await api.deleteVirtualArea(zoneId);
             setZones(prev => prev.filter(z => z.id !== zoneId));
+            setMapKey(prev => prev + 1); // Force map remount after zone deleted
         } catch(err) {
             console.error(err);
             notify(`Failed to delete zone: ${err.message}`, 'alert');
@@ -475,6 +631,7 @@ const DashboardPage = () => {
         try {
             const updatedZone = await api.updateVirtualArea(zoneId, updateData);
             setZones(prev => prev.map(z => z.id === zoneId ? updatedZone : z));
+            setMapKey(prev => prev + 1); // Force map remount after zone updated
         } catch (err) {
             console.error(err);
             notify(`Failed to update zone: ${err.message}`, 'alert');
@@ -513,6 +670,7 @@ const DashboardPage = () => {
             // Fetch spots again to get latest data from backend
             const spotsResponse = await api.getImportantSpots(selectedEventId);
             setSpots(spotsResponse || []);
+            setMapKey(prev => prev + 1); // Force map remount after spot created
             closeSpotModal();
         } catch (err) {
             console.error(err);
@@ -552,6 +710,13 @@ const DashboardPage = () => {
             setSpots(spotsResponse || []);
         }
     };
+
+    // --- Stabilize zones and spots references to prevent unnecessary MapComponent re-renders ---
+    // Use JSON.stringify to ensure deep comparison - only update when actual content changes
+    const zonesJson = JSON.stringify(zones);
+    const spotsJson = JSON.stringify(spots);
+    const stableZones = useMemo(() => zones, [zonesJson]);
+    const stableSpots = useMemo(() => spots, [spotsJson]);
 
     // --- Filter Logic ---
     const filteredParticipants = useMemo(() => {
@@ -758,7 +923,7 @@ const DashboardPage = () => {
                         : (
                             <>
                                 <MapComponent
-                                    key={JSON.stringify(zones) + JSON.stringify(spots) + isManageZonesMode + isManageSpotsMode + isAttendanceExpanded}
+                                    key={mapKey}
                                     ref={mapRef}
                                     center={mapCenter}
                                     participantLocations={filteredParticipants}
@@ -767,8 +932,8 @@ const DashboardPage = () => {
                                     theme="auto"
                                     isManageZonesMode={isManageZonesMode}
                                     isAddingSpotMode={isAddingSpotMode}
-                                    zones={zones}
-                                    spots={spots}
+                                    zones={stableZones}
+                                    spots={stableSpots}
                                     onZoneCreated={handleZoneCreated}
                                     onLocationSelect={handleLocationSelectForSpot}
                                 />
@@ -784,20 +949,99 @@ const DashboardPage = () => {
                 </div>
 
                 {/* Right Sidebar - Incident Feed + Notifications */}
-                <div className="w-96 flex flex-col gap-4">
-                    {/* Notifications */}
+                <div className={`flex flex-col gap-4 transition-all duration-300 ${isIncidentSidebarOpen ? 'w-96' : 'w-12'}`}>
+                    {/* Toggle Button */}
+                    <button
+                        onClick={() => setIsIncidentSidebarOpen(!isIncidentSidebarOpen)}
+                        className="flex-shrink-0 h-12 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-center group"
+                        title={isIncidentSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                    >
+                        {isIncidentSidebarOpen ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-600 dark:text-slate-400 group-hover:text-black dark:group-hover:text-white">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-gray-600 dark:text-slate-400 group-hover:text-black dark:group-hover:text-white">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                            </svg>
+                        )}
+                    </button>
+                    
+                    {isIncidentSidebarOpen && (
+                        <>
+                    {/* Toast Notifications (Auto-hide) */}
                     {notifications.length > 0 && (
-                        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+                        <div className="bg-gradient-to-r from-indigo-500 to-purple-500 border border-indigo-400 dark:border-indigo-600 rounded-xl p-4 shadow-lg animate-slideInRight">
                             <div className="flex items-center gap-2 mb-3">
-                                <BellIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                                <h3 className="font-bold text-black dark:text-white">Notifikasi Event</h3>
-                                <span className="ml-auto bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                                <BellIcon className="w-5 h-5 text-white animate-bounce" />
+                                <h3 className="font-bold text-white">Notifikasi Baru</h3>
+                                <span className="ml-auto bg-white/30 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                                     {notifications.length}
                                 </span>
                             </div>
-                            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                {notifications.slice(0, 3).map((notif) => {
-                                    // Determine notification type label, badge, and border color
+                            <div className="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                {notifications.map((notif) => {
+                                    const getNotifTypeLabel = (type) => {
+                                        switch(type) {
+                                            case 'REPORT_FEEDBACK': return 'Feedback Report';
+                                            case 'EVENT_UPDATE': return 'Event Update';
+                                            case 'SECURITY_ALERT': return 'Security Alert';
+                                            case 'GENERAL': return 'General';
+                                            default: return 'Notification';
+                                        }
+                                    };
+                                    
+                                    return (
+                                        <div key={notif.id} className="bg-white dark:bg-slate-800 rounded-lg px-3 py-2 text-sm shadow-md">
+                                            <div className="flex items-center justify-between gap-2 mb-1">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                                                    {getNotifTypeLabel(notif.type)}
+                                                </span>
+                                                {notif.deliveryMethod === 'BROADCAST' && (
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                                        Broadcast
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="font-semibold text-black dark:text-white text-xs">{notif.title}</div>
+                                            <div className="text-gray-600 dark:text-slate-400 text-xs line-clamp-2">{notif.message}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Unread Notifications (Persistent) */}
+                    {unreadNotifications.length > 0 && (
+                        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <BellIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                    <h3 className="font-bold text-black dark:text-white">Belum Dibaca</h3>
+                                    <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                                        {unreadNotifications.length}
+                                    </span>
+                                </div>
+                                {unreadNotifications.length > 0 && (
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await api.markAllNotificationsAsRead();
+                                                setUnreadNotifications([]);
+                                                notify('✅ Semua notifikasi ditandai sudah dibaca', 'success');
+                                            } catch (err) {
+                                                notify('❌ Gagal menandai sebagai dibaca', 'error');
+                                            }
+                                        }}
+                                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold"
+                                    >
+                                        Tandai Semua Dibaca
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                {unreadNotifications.map((notif) => {
                                     const getNotifTypeLabel = (type) => {
                                         switch(type) {
                                             case 'REPORT_FEEDBACK': return 'Feedback Report';
@@ -832,7 +1076,20 @@ const DashboardPage = () => {
                                     };
                                     
                                     return (
-                                        <div key={notif.id} className={`bg-gray-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm border-l-2 ${getBorderColor(notif.type)}`}>
+                                        <div 
+                                            key={notif.id} 
+                                            className={`bg-gray-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm border-l-2 ${getBorderColor(notif.type)} cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors relative`}
+                                            onClick={async () => {
+                                                try {
+                                                    await api.markNotificationAsRead(notif.id);
+                                                    setUnreadNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                                    notify('✓ Ditandai sudah dibaca', 'success');
+                                                } catch (err) {
+                                                    console.error('Failed to mark as read:', err);
+                                                }
+                                            }}
+                                        >
+                                            <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                                             <div className="flex items-center justify-between gap-2 mb-1">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -848,13 +1105,21 @@ const DashboardPage = () => {
                                             </div>
                                             <div className="font-semibold text-black dark:text-white text-xs">{notif.title}</div>
                                             <div className="text-gray-600 dark:text-slate-400 text-xs line-clamp-2">{notif.message}</div>
+                                            <div className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+                                                {new Date(notif.createdAt).toLocaleString('id-ID', { 
+                                                    day: '2-digit', 
+                                                    month: 'short', 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                })}
+                                            </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
                     )}
-
+                    
                     {/* Incident Feed */}
                     <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-gray-200 dark:border-slate-800">
@@ -870,6 +1135,8 @@ const DashboardPage = () => {
                             />
                         </div>
                     </div>
+                    </>
+                    )}
                 </div>
 
                 {/* Zone/Spot Sidebars */}

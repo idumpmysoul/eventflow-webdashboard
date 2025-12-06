@@ -225,7 +225,9 @@ const MapComponent = forwardRef(({
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         
-        console.log('[MapComponent] Zones prop changed:', zones);
+        console.log('🔴 [MapComponent ZONES useEffect] TRIGGERED');
+        console.log('🔴 [MapComponent] Zones prop changed:', zones);
+        console.log('🔴 [MapComponent] Zones length:', zones?.length);
         
         // ✅ CLEANUP: REMOVE existing layers and source
         if (map.current.getLayer('zones-fill')) {
@@ -345,7 +347,9 @@ const MapComponent = forwardRef(({
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         
-        console.log('[MapComponent] Spots prop changed:', spots);
+        console.log('🟢 [MapComponent SPOTS useEffect] TRIGGERED');
+        console.log('🟢 [MapComponent] Spots prop changed:', spots);
+        console.log('🟢 [MapComponent] Spots length:', spots?.length);
         
         // ✅ CLEANUP: Remove all spot markers before re-adding
         Object.keys(spotMarkers.current).forEach(id => {
@@ -395,6 +399,156 @@ const MapComponent = forwardRef(({
 
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
+        
+        console.log('🗺️ [MapComponent] useEffect triggered - updating markers');
+        console.log('🗺️ [MapComponent] Participant locations:', participantLocations?.length || 0);
+        console.log('🗺️ [MapComponent] Current spot markers:', Object.keys(spotMarkers.current).length);
+        console.log('🗺️ [MapComponent] Map has zones-fill layer:', !!map.current.getLayer('zones-fill'));
+        
+        // 🔧 FIX: Re-add zones if they're missing
+        const hasZonesLayer = !!map.current.getLayer('zones-fill');
+        const hasZonesSource = !!map.current.getSource('zones-data');
+        const shouldHaveZones = Array.isArray(zones) && zones.length > 0;
+        
+        if (shouldHaveZones && (!hasZonesLayer || !hasZonesSource)) {
+            console.log('🔧 [MapComponent] Auto-recovering zones...');
+            
+            const reAddZones = () => {
+                try {
+                    // Remove existing if any
+                    if (map.current.getLayer('zones-fill')) {
+                        map.current.removeLayer('zones-fill');
+                    }
+                    if (map.current.getLayer('zones-line')) {
+                        map.current.removeLayer('zones-line');
+                    }
+                    if (map.current.getSource('zones-data')) {
+                        map.current.removeSource('zones-data');
+                    }
+                    
+                    // Prepare features
+                    const features = zones
+                        .filter(zone => zone.area && zone.area.type === 'Polygon' && Array.isArray(zone.area.coordinates))
+                        .map(zone => ({
+                            type: 'Feature',
+                            id: zone.id,
+                            properties: {
+                                color: zone.color || '#888888',
+                                name: zone.name
+                            },
+                            geometry: zone.area
+                        }));
+                    
+                    // Re-add source
+                    map.current.addSource('zones-data', { 
+                        type: 'geojson', 
+                        data: { type: 'FeatureCollection', features } 
+                    });
+                    
+                    // Re-add fill layer
+                    map.current.addLayer({
+                        id: 'zones-fill',
+                        type: 'fill',
+                        source: 'zones-data',
+                        layout: {},
+                        paint: {
+                            'fill-color': ['get', 'color'],
+                            'fill-opacity': 0.3
+                        }
+                    });
+                    
+                    // Re-add line layer
+                    map.current.addLayer({
+                        id: 'zones-line',
+                        type: 'line',
+                        source: 'zones-data',
+                        layout: {},
+                        paint: {
+                            'line-color': ['get', 'color'],
+                            'line-width': 2
+                        }
+                    });
+                    
+                    console.log('✅ [MapComponent] Zones re-added successfully');
+                } catch (err) {
+                    console.error('❌ [MapComponent] Failed to re-add zones:', err);
+                }
+            };
+            
+            // Wait for style to be loaded before re-adding
+            if (map.current.isStyleLoaded()) {
+                reAddZones();
+            } else {
+                console.log('⏳ [MapComponent] Waiting for map style...');
+                const onStyleData = () => {
+                    if (map.current.isStyleLoaded()) {
+                        reAddZones();
+                        map.current.off('styledata', onStyleData);
+                    }
+                };
+                map.current.on('styledata', onStyleData);
+            }
+        }
+        
+        // 🔧 FIX: Re-add spots if they're missing
+        const currentSpotMarkersCount = Object.keys(spotMarkers.current).length;
+        const shouldHaveSpots = Array.isArray(spots) && spots.length > 0;
+        
+        if (shouldHaveSpots && currentSpotMarkersCount === 0) {
+            console.warn('⚠️ [MapComponent] Spots missing! Should have:', spots.length, 'spots but have:', currentSpotMarkersCount);
+            console.warn('⚠️ [MapComponent] Re-adding spots...');
+            
+            const reAddSpots = () => {
+                try {
+                    spots.forEach(spot => {
+                        const config = spotConfig[spot.type] || spotConfig[SpotType.OTHER];
+                        
+                        const el = document.createElement('div');
+                        el.className = `w-7 h-7 ${config.color} border-2 border-white rounded-full flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform cursor-pointer`;
+                        el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">${config.icon}</svg>`;
+
+                        let typeLabel = config.label;
+                        if (spot.type === SpotType.OTHER && spot.customType) {
+                            typeLabel = spot.customType;
+                        }
+
+                        const marker = new mapboxgl.Marker(el)
+                            .setLngLat([spot.longitude, spot.latitude])
+                            .setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
+                                <div class="p-1" style="color:#fff;">
+                                    <div class="font-bold text-xs" style="color:#fff;">${spot.name}</div>
+                                    <div class="text-xs" style="color:#a7f3d0;">${typeLabel}</div>
+                                </div>
+                            `))
+                            .addTo(map.current);
+
+                        spotMarkers.current[spot.id] = marker;
+                    });
+                    
+                    console.log('✅ [MapComponent] Spots re-added successfully. Total:', Object.keys(spotMarkers.current).length);
+                } catch (err) {
+                    console.error('❌ [MapComponent] Failed to re-add spots:', err);
+                }
+            };
+            
+            // Spots are markers (not layers), so no need to wait for style
+            reAddSpots();
+        } else if (shouldHaveSpots && currentSpotMarkersCount > 0) {
+            // Spots exist in memory, but might be detached from map - re-attach them
+            console.log('🔧 [MapComponent] Re-attaching spots...');
+            try {
+                spots.forEach(spot => {
+                    if (spotMarkers.current[spot.id]) {
+                        // Re-add existing marker to map
+                        spotMarkers.current[spot.id].addTo(map.current);
+                    }
+                });
+                console.log('✅ [MapComponent] Spots re-attached');
+            } catch (err) {
+                console.error('❌ [MapComponent] Failed to re-attach spots:', err);
+            }
+        }
+        
         const safeParticipantLocations = Array.isArray(participantLocations) ? participantLocations : [];
 
         if (participantDisplayMode === 'heatmap') {
@@ -570,8 +724,27 @@ const MapComponent = forwardRef(({
         safeParticipantLocations.forEach(p => {
             const style = getMarkerStyle(p);
             
+            console.log('🗺️ [MapComponent] Processing participant:', {
+                userId: p.userId,
+                name: p.user?.name || p.name,
+                lat: p.latitude?.toFixed(4),
+                lng: p.longitude?.toFixed(4),
+                status: p.lastGeofenceStatus,
+                hasMarker: !!participantMarkers.current[p.userId]
+            });
+            
             if (participantMarkers.current[p.userId]) {
                 // Update existing marker position
+                const oldLngLat = participantMarkers.current[p.userId].getLngLat();
+                console.log('🗺️ [MapComponent] ✅ Updating marker position from:', 
+                    `${oldLngLat.lat.toFixed(4)}, ${oldLngLat.lng.toFixed(4)}`,
+                    'to:',
+                    `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
+                );
+                
+                // 🔧 FIX: Re-attach marker to map if detached
+                participantMarkers.current[p.userId].addTo(map.current);
+                
                 participantMarkers.current[p.userId].setLngLat([p.longitude, p.latitude]);
                 
                 // Update marker color based on classification

@@ -29,6 +29,10 @@ function NotificationPage() {
   const [participantFilter, setParticipantFilter] = useState(''); // Filter by participant name (untuk INDIVIDUAL)
   const [reportCategoryFilter, setReportCategoryFilter] = useState('ALL'); // SECURITY, CROWD, FACILITY, OTHER (untuk REPORT_FEEDBACK)
   const [senderReceiverFilter, setSenderReceiverFilter] = useState('ALL'); // 'ALL', 'SENT', 'RECEIVED'
+  const [readStatusFilter, setReadStatusFilter] = useState('ALL'); // 'ALL', 'UNREAD', 'READ'
+  
+  // Unread notifications tracking
+  const [unreadNotificationIds, setUnreadNotificationIds] = useState(new Set());
   
   const [participants, setParticipants] = useState([]);
   const [notifForm, setNotifForm] = useState({ 
@@ -61,13 +65,82 @@ function NotificationPage() {
         setParticipants(Array.isArray(data) ? data : []);
       })
       .catch(() => setParticipants([]));
-  }, [selectedEventId]);
+    
+    // Fetch unread notifications for organizer
+    if (user?.role?.toUpperCase() === 'ORGANIZER') {
+      api.getUnreadNotifications()
+        .then((response) => {
+          const unreadData = response?.unreadNotifications || [];
+          const unreadIds = new Set(unreadData.map(un => un.notificationId));
+          setUnreadNotificationIds(unreadIds);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch unread notifications:', err);
+          setUnreadNotificationIds(new Set());
+        });
+    }
+  }, [selectedEventId, user?.role]);
 
   // Filtering logic
   let filteredNotifications = notifications.filter((notif) => {
+    // PRIORITAS PERTAMA: Filter by Sender/Receiver
+    // Ini harus dijalankan PERTAMA sebelum filter lain
+    if (senderReceiverFilter === 'SENT') {
+      // Cek apakah user ini yang membuat notifikasi
+      if (notif.createdBy && notif.createdBy.id === user?.id) {
+        // Lanjutkan ke filter lain
+      } else if (user?.role === 'organizer') {
+        if (notif.deliveryMethod === 'INDIVIDUAL') {
+          const receiverId = notif.receiver?.id 
+            || notif.userNotifications?.[0]?.user?.id
+            || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
+          
+          if (receiverId === user?.id) {
+            return false; // Ini diterima organizer, bukan dikirim
+          }
+          // Lanjutkan ke filter lain
+        }
+        // Broadcast - lanjutkan ke filter lain
+      } else {
+        return false; // Participant tidak bisa kirim
+      }
+    } else if (senderReceiverFilter === 'RECEIVED') {
+      console.log('[Filter RECEIVED] Checking:', {
+        id: notif.id,
+        deliveryMethod: notif.deliveryMethod,
+        createdBy: notif.createdBy?.id,
+        userId: user?.id,
+        role: user?.role
+      });
+      
+      // Notifikasi yang diterima oleh user ini
+      if (notif.deliveryMethod === 'INDIVIDUAL') {
+        const receiverId = notif.receiver?.id 
+          || notif.userNotifications?.[0]?.user?.id
+          || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
+        
+        if (receiverId !== user?.id) {
+          console.log('[Filter RECEIVED] REJECT - Individual not for user');
+          return false;
+        }
+        console.log('[Filter RECEIVED] PASS - Individual for user');
+        // Lanjutkan ke filter lain
+      } else if (notif.deliveryMethod === 'BROADCAST') {
+        console.log('[Filter RECEIVED] Processing BROADCAST - role:', user?.role);
+        if (user?.role?.toUpperCase() === 'ORGANIZER') {
+          console.log('[Filter RECEIVED] REJECT - Organizer cannot receive broadcast');
+          return false; // REJECT: Organizer tidak terima broadcast
+        }
+        console.log('[Filter RECEIVED] PASS - Participant can receive broadcast');
+        // Participant terima broadcast - lanjutkan ke filter lain
+      } else {
+        console.log('[Filter RECEIVED] REJECT - Unknown deliveryMethod');
+        return false;
+      }
+    }
+    
     // 1. Filter by NotificationType
     if (typeFilter === 'FROM_REPORT') {
-      // Filter khusus: Hanya tampilkan notifikasi yang punya category (dari report)
       if (!notif.category) {
         return false;
       }
@@ -103,52 +176,50 @@ function NotificationPage() {
       }
     }
 
-    // 5. Filter by Sender/Receiver
-    if (senderReceiverFilter === 'SENT') {
-      // Cek apakah user ini yang membuat notifikasi
-      // Gunakan createdBy dari backend (sudah include di response)
-      if (notif.createdBy && notif.createdBy.id === user?.id) {
-        return true; // User ini yang kirim
+    // 5. Filter by Read Status (untuk organizer)
+    if (readStatusFilter !== 'ALL') {
+      const isUnread = unreadNotificationIds.has(notif.id);
+      if (readStatusFilter === 'UNREAD' && !isUnread) {
+        return false; // Show only unread
       }
-      // Fallback jika createdBy tidak ada (untuk backward compatibility)
-      if (user?.role === 'organizer') {
-        if (notif.deliveryMethod === 'INDIVIDUAL') {
-          const receiverId = notif.receiver?.id 
-            || notif.userNotifications?.[0]?.user?.id
-            || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
-          
-          if (receiverId === user?.id) {
-            return false; // Ini diterima organizer, bukan dikirim
-          }
-          return true;
-        }
-        return true; // Broadcast
-      }
-      return false; // Participant tidak bisa kirim
-    } else if (senderReceiverFilter === 'RECEIVED') {
-      // Notifikasi yang diterima oleh user ini
-      if (notif.deliveryMethod === 'INDIVIDUAL') {
-        // Individual: harus user adalah receiver
-        const receiverId = notif.receiver?.id 
-          || notif.userNotifications?.[0]?.user?.id
-          || (Array.isArray(notif.receiver) && notif.receiver[0]?.id);
-        
-        if (receiverId !== user?.id) {
-          return false;
-        }
-      } else if (notif.deliveryMethod === 'BROADCAST') {
-        // Broadcast: participant menerima, organizer tidak
-        if (user?.role === 'organizer') {
-          return false;
-        }
+      if (readStatusFilter === 'READ' && isUnread) {
+        return false; // Show only read
       }
     }
-    
+
     return true;
   });
 
   // Sort latest first
   filteredNotifications = filteredNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  // Handler mark notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await api.markNotificationAsRead(notificationId);
+      // Remove from unread set
+      setUnreadNotificationIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(notificationId);
+        return newSet;
+      });
+    } catch (err) {
+      console.error('Failed to mark as read:', err);
+    }
+  };
+
+  // Handler mark all as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.markAllNotificationsAsRead();
+      setUnreadNotificationIds(new Set());
+      setSendSuccess('✅ Semua notifikasi ditandai sudah dibaca');
+      setTimeout(() => setSendSuccess(null), 3000);
+    } catch (err) {
+      setSendError('❌ Gagal menandai sebagai dibaca');
+      setTimeout(() => setSendError(null), 3000);
+    }
+  };
 
   // Handler send notification
   const handleSendNotif = async (e) => {
@@ -251,11 +322,18 @@ function NotificationPage() {
                       className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                     >
                       <option value="">-- Pilih Peserta --</option>
-                      {participants.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.user?.name || p.name || p.id} {p.user?.email ? `(${p.user.email})` : ''}
-                        </option>
-                      ))}
+                      {participants.map(p => {
+                        // Backend expects userId, not EventParticipant.id
+                        const participantUserId = p.userId || p.user?.id;
+                        const participantName = p.user?.name || p.name || 'Unknown';
+                        const participantEmail = p.user?.email || p.email || '';
+                        
+                        return (
+                          <option key={p.id} value={participantUserId}>
+                            {participantName} {participantEmail ? `(${participantEmail})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -507,8 +585,67 @@ function NotificationPage() {
                 <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Filter notifikasi yang berasal dari laporan</p>
               </div>
 
+              {/* Filter by Read Status - For Organizer Only */}
+              {user?.role?.toUpperCase() === 'ORGANIZER' && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+                    Status Baca
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReadStatusFilter('ALL')}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
+                        readStatusFilter === 'ALL'
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:border-indigo-400'
+                      }`}
+                    >
+                      Semua
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReadStatusFilter('UNREAD')}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border flex items-center justify-center gap-1 ${
+                        readStatusFilter === 'UNREAD'
+                          ? 'bg-red-600 text-white border-red-600'
+                          : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:border-red-400'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${readStatusFilter === 'UNREAD' ? 'bg-white' : 'bg-red-500'}`}></span>
+                      Belum Dibaca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReadStatusFilter('READ')}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
+                        readStatusFilter === 'READ'
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:border-green-400'
+                      }`}
+                    >
+                      Sudah Dibaca
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-500 dark:text-slate-500">
+                      {unreadNotificationIds.size} notifikasi belum dibaca
+                    </p>
+                    {unreadNotificationIds.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllAsRead}
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold"
+                      >
+                        Tandai Semua Dibaca
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Reset Filters Button */}
-              {(typeFilter !== 'ALL' || deliveryMethodFilter !== 'ALL' || participantFilter || reportCategoryFilter !== 'ALL' || senderReceiverFilter !== 'ALL') && (
+              {(typeFilter !== 'ALL' || deliveryMethodFilter !== 'ALL' || participantFilter || reportCategoryFilter !== 'ALL' || senderReceiverFilter !== 'ALL' || readStatusFilter !== 'ALL') && (
                 <button
                   onClick={() => {
                     setTypeFilter('ALL');
@@ -516,6 +653,7 @@ function NotificationPage() {
                     setParticipantFilter('');
                     setReportCategoryFilter('ALL');
                     setSenderReceiverFilter('ALL');
+                    setReadStatusFilter('ALL');
                   }}
                   className="w-full mt-2 px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
@@ -555,11 +693,28 @@ function NotificationPage() {
 
             {/* GRID LAYOUT FIX: Menggunakan grid-cols-1 untuk layar kecil, dan xl:grid-cols-2 untuk layar lebar */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
-              {filteredNotifications.map((notif) => (
+              {filteredNotifications.map((notif) => {
+                const isUnread = unreadNotificationIds.has(notif.id);
+                
+                return (
                 <div 
                   key={notif.id} 
-                  className="flex flex-col bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 group"
+                  className={`flex flex-col bg-white dark:bg-slate-900 border rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group relative ${
+                    isUnread 
+                      ? 'border-indigo-400 dark:border-indigo-600 cursor-pointer' 
+                      : 'border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                  }`}
+                  onClick={() => {
+                    if (isUnread && user?.role?.toUpperCase() === 'ORGANIZER') {
+                      handleMarkAsRead(notif.id);
+                    }
+                  }}
                 >
+                  {/* Unread Indicator */}
+                  {isUnread && user?.role?.toUpperCase() === 'ORGANIZER' && (
+                    <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900"></div>
+                  )}
+                  
                   {/* Header Card */}
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex gap-2 items-center flex-wrap">
@@ -650,7 +805,8 @@ function NotificationPage() {
                      </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

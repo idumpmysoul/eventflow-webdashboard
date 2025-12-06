@@ -112,7 +112,7 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                 </p>
                                 {aiInsights.length > 0 && (
                                     <div className="mt-4 p-3 bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30 rounded-lg">
-                                        <p className="text-xs text-indigo-700 dark:text-indigo-300 font-bold mb-1">AI Summary</p>
+                                        <p className="text-xs text-indigo-700 dark:text-indigo-300 font-bold mb-2">AI Summary</p>
                                         {aiInsights.map((insight) => {
                                             let parsed = null;
                                             let raw = insight.aiPayload?.insight || '';
@@ -121,22 +121,22 @@ const IncidentDetailModal = ({ report, aiInsights = [], onClose, onUpdate }) => 
                                                 parsed = JSON.parse(raw);
                                             } catch { parsed = null; }
                                             return (
-                                                <div key={insight.id} className="mb-4">
-                                                    <div className="text-xs text-gray-700 dark:text-slate-300 mb-1">Model: {insight.meta?.model || 'AI'}</div>
+                                                <div key={insight.id} className="mb-3">
+                                                    <div className="text-xs text-gray-700 dark:text-slate-300 mb-2">Model: {insight.meta?.model || 'AI'}</div>
                                                     {parsed ? (
-                                                        <div className="space-y-2">
-                                                            <div><span className="font-bold text-indigo-700 dark:text-indigo-200">Severity:</span> <span className="text-red-600 dark:text-red-300">{parsed.severity}</span></div>
-                                                            <div><span className="font-bold text-indigo-700 dark:text-indigo-200">Ringkasan:</span> <span className="text-indigo-900 dark:text-indigo-100">{parsed.summary}</span></div>
+                                                        <div className="space-y-2 text-sm">
+                                                            <div className="text-justify"><span className="font-bold text-indigo-700 dark:text-indigo-200">Severity:</span> <span className="text-red-600 dark:text-red-300 font-semibold">{parsed.severity}</span></div>
+                                                            <div className="text-justify"><span className="font-bold text-indigo-700 dark:text-indigo-200">Ringkasan:</span> <span className="text-indigo-900 dark:text-indigo-100">{parsed.summary}</span></div>
                                                             {parsed.actions && (
                                                                 <div className="space-y-1">
-                                                                    <span className="font-bold text-indigo-700 dark:text-indigo-200">Tindakan:</span>
-                                                                    {parsed.actions.participant && <div className="text-indigo-900 dark:text-indigo-100 text-xs">Peserta: {parsed.actions.participant}</div>}
-                                                                    {parsed.actions.organizer && <div className="text-indigo-900 dark:text-indigo-100 text-xs">Penyelenggara: {parsed.actions.organizer}</div>}
+                                                                    <div className="font-bold text-indigo-700 dark:text-indigo-200">Tindakan:</div>
+                                                                    {parsed.actions.participant && <div className="text-indigo-900 dark:text-indigo-100 text-sm pl-4 text-justify"><span className="font-semibold">• Peserta:</span> {parsed.actions.participant}</div>}
+                                                                    {parsed.actions.organizer && <div className="text-indigo-900 dark:text-indigo-100 text-sm pl-4 text-justify"><span className="font-semibold">• Penyelenggara:</span> {parsed.actions.organizer}</div>}
                                                                 </div>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-line">{raw}</div>
+                                                        <div className="text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-line text-justify">{raw}</div>
                                                     )}
                                                 </div>
                                             );

@@ -137,6 +137,34 @@ const api = {
     });
     return handleResponse(res);
   },
+
+  // ============ USER NOTIFICATIONS (UNREAD/READ) ============
+  async getUnreadNotifications() {
+    // GET /user-notifications/me/unread-list
+    const res = await fetch(`${API_BASE}/user-notifications/me/unread-list`, {
+      method: 'GET',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  async markNotificationAsRead(notificationId) {
+    // POST /user-notifications/:notificationId/read
+    const res = await fetch(`${API_BASE}/user-notifications/${notificationId}/read`, {
+      method: 'POST',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
+
+  async markAllNotificationsAsRead() {
+    // POST /user-notifications/read-all
+    const res = await fetch(`${API_BASE}/user-notifications/read-all`, {
+      method: 'POST',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
   
   async finishEvent(eventId) {
     const res = await fetch(`${API_BASE}/events/${eventId}/finish`, {
