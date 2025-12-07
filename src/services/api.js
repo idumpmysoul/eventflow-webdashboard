@@ -365,6 +365,41 @@ const api = {
     });
     return handleResponse(res);
   },
+
+  // ============ USER PROFILE ============
+  async updateUserProfile(formData) {
+    // PATCH /users/me - Update user profile (name, phoneNumber, avatar)
+    // FormData is used for multipart/form-data (file upload)
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/users/me`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type header - browser will set it with boundary for FormData
+      },
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
+  async changePassword({ currentPassword, newPassword }) {
+    // POST /users/me/change-password
+    const res = await fetch(`${API_BASE}/users/me/change-password`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return handleResponse(res);
+  },
+
+  async deleteEvent(eventId) {
+    // DELETE /events/:id
+    const res = await fetch(`${API_BASE}/events/${eventId}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+    return handleResponse(res);
+  },
 };
 
 export default api;

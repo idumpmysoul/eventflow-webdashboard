@@ -186,6 +186,7 @@ const ParticipantsPage = () => {
                                     const name = item.user?.name || item.name || 'Unknown';
                                     const email = item.user?.email || item.email || '-';
                                     const phone = item.user?.phoneNumber || '-';
+                                    const avatarUrl = item.user?.avatarUrl || null;
                                     const joinedAt = item.joinedAt ? new Date(item.joinedAt).toLocaleString('id-ID', { 
                                         dateStyle: 'short', 
                                         timeStyle: 'short' 
@@ -201,9 +202,19 @@ const ParticipantsPage = () => {
                                         <TableRow key={item.id || item.userId} className="hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors">
                                             <TableCell className="text-black dark:text-white font-medium">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-bold">
-                                                        {name.charAt(0)}
-                                                    </div>
+                                                    {avatarUrl ? (
+                                                        <img 
+                                                            src={avatarUrl} 
+                                                            alt={name} 
+                                                            className="w-8 h-8 rounded-full object-cover border-2 border-indigo-500"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-bold">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                                                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
                                                     {name}
                                                 </div>
                                             </TableCell>

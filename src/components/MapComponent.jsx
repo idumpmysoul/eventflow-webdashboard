@@ -736,7 +736,7 @@ const MapComponent = forwardRef(({
             if (participantMarkers.current[p.userId]) {
                 // Update existing marker position
                 const oldLngLat = participantMarkers.current[p.userId].getLngLat();
-                console.log('🗺️ [MapComponent] ✅ Updating marker position from:', 
+                console.log('[MapComponent] Updating marker position from:', 
                     `${oldLngLat.lat.toFixed(4)}, ${oldLngLat.lng.toFixed(4)}`,
                     'to:',
                     `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
@@ -762,14 +762,19 @@ const MapComponent = forwardRef(({
                     'ABSENT': '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-semibold">✗ ABSENT</span>'
                 }[attendanceStatus];
                 
+                const avatarUrl = p.user?.avatarUrl || null;
+                const avatarHTML = avatarUrl 
+                    ? `<img src="${avatarUrl}" alt="${p.user?.name || p.name || 'User'}" class="w-6 h-6 rounded-full object-cover border border-gray-300 dark:border-gray-600" />` 
+                    : `<div class="w-6 h-6 rounded-full ${style.bgColor} flex items-center justify-center">
+                        <svg class="w-4 h-4 ${style.statusColor} dark:${style.statusColor.replace('text-', 'text-')}" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>`;
+                
                 popup.setHTML(`
                     <div class="text-slate-900 dark:text-white p-2 min-w-[220px]">
                         <div class="font-bold text-sm mb-2 flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-full ${style.bgColor} flex items-center justify-center">
-                                <svg class="w-4 h-4 ${style.statusColor} dark:${style.statusColor.replace('text-', 'text-')}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                                </svg>
-                            </div>
+                            ${avatarHTML}
                             <span>${p.user?.name || p.name || 'Participant'}</span>
                         </div>
                         <div class="text-xs space-y-1.5 text-gray-600 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700 pt-2">
@@ -818,14 +823,19 @@ const MapComponent = forwardRef(({
                     'ABSENT': '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-semibold">✗ ABSENT</span>'
                 }[attendanceStatus];
                 
+                const avatarUrl = p.user?.avatarUrl || null;
+                const avatarHTML = avatarUrl 
+                    ? `<img src="${avatarUrl}" alt="${p.user?.name || p.name || 'User'}" class="w-6 h-6 rounded-full object-cover border border-gray-300 dark:border-gray-600" />` 
+                    : `<div class="w-6 h-6 rounded-full ${style.bgColor} flex items-center justify-center">
+                        <svg class="w-4 h-4 ${style.statusColor} dark:${style.statusColor.replace('text-', 'text-')}" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>`;
+                
                 const popupHTML = `
                     <div class="text-slate-900 dark:text-white p-2 min-w-[220px]">
                         <div class="font-bold text-sm mb-2 flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-full ${style.bgColor} flex items-center justify-center">
-                                <svg class="w-4 h-4 ${style.statusColor} dark:${style.statusColor.replace('text-', 'text-')}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                                </svg>
-                            </div>
+                            ${avatarHTML}
                             <span>${p.user?.name || p.name || 'Participant'}</span>
                         </div>
                         <div class="text-xs space-y-1.5 text-gray-600 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700 pt-2">

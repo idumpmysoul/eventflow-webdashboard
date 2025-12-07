@@ -13,6 +13,7 @@ import ParticipantsPage from './pages/ParticipantsPage.jsx';
 import HeatmapPage from './pages/HeatmapPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 import OrganizerReportPage from './pages/OrganizerReportPage.jsx';
 import NotificationPage from './pages/NotificationPage.jsx';
 
@@ -60,6 +61,7 @@ function AppRoutes() {
         <Route path="heatmap" element={<HeatmapPage />} />
         <Route path="reports" element={<OrganizerReportPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="notifications" element={<NotificationPage />} />
       </Route>

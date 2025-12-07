@@ -336,6 +336,18 @@ function NotificationPage() {
                       })}
                     </select>
                   </div>
+                  {notifForm.participantId && participants.find(p => (p.userId || p.user?.id) === notifForm.participantId)?.user?.avatarUrl && (
+                    <div className="mt-2 flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                      <img 
+                        src={participants.find(p => (p.userId || p.user?.id) === notifForm.participantId)?.user?.avatarUrl} 
+                        alt="Selected participant" 
+                        className="w-8 h-8 rounded-full object-cover border-2 border-indigo-400"
+                      />
+                      <span className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                        {participants.find(p => (p.userId || p.user?.id) === notifForm.participantId)?.user?.name || participants.find(p => (p.userId || p.user?.id) === notifForm.participantId)?.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -783,9 +795,17 @@ function NotificationPage() {
                                if (!receiver) return null;
                                return (
                                  <>
-                                   <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
-                                      {receiver.name?.[0] || 'R'}
-                                   </div>
+                                   {receiver.avatarUrl ? (
+                                     <img 
+                                       src={receiver.avatarUrl} 
+                                       alt={receiver.name || 'Receiver'} 
+                                       className="w-5 h-5 rounded-full object-cover border border-indigo-300 dark:border-indigo-600"
+                                     />
+                                   ) : (
+                                     <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
+                                       {receiver.name?.[0] || 'R'}
+                                     </div>
+                                   )}
                                    <span className="truncate max-w-[120px]">{receiver.name}</span>
                                  </>
                                );
